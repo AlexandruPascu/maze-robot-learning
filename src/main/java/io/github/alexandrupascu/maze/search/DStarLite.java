@@ -22,7 +22,6 @@ public final class DStarLite {
   private final int[] rhs;
   private final Queue queue;
   private int start;
-  private int last;
   private int keyModifier;
   private boolean changed;
   private long expansions;
@@ -33,7 +32,6 @@ public final class DStarLite {
     int tiles = width * height;
     this.goal = index(goal);
     this.start = index(start);
-    this.last = this.start;
     blocked = new boolean[tiles];
     g = new int[tiles];
     rhs = new int[tiles];
@@ -45,9 +43,18 @@ public final class DStarLite {
     changed = true;
   }
 
-  /** The robot now stands on {@code tile}. Moving needs no search. */
+  /**
+   * The robot now stands on {@code tile}, which may be anywhere. Queued priorities were computed from
+   * the old position, so the key modifier grows by the distance moved to keep them lower bounds.
+   * Moving along the route returned by {@link #next()} triggers no further search.
+   */
   public void moveTo(Position tile) {
-    start = index(tile);
+    int moved = index(tile);
+    if (moved != start) {
+      keyModifier += heuristic(start, moved);
+      start = moved;
+      changed = true;
+    }
   }
 
   /** A wall discovered on {@code tile}; the affected routes are repaired at the next {@link #next()}. */
@@ -59,11 +66,7 @@ public final class DStarLite {
     if (blocked[wall]) {
       return;
     }
-    if (!changed) {
-      keyModifier += heuristic(last, start);
-      last = start;
-      changed = true;
-    }
+    changed = true;
     blocked[wall] = true;
     rhs[wall] = INFINITE;
     update(wall);

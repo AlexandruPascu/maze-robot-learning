@@ -77,6 +77,37 @@ class DStarLiteTest {
     }
   }
 
+  // The robot may be moved anywhere, not only to the tile next() suggested.
+  @Test
+  void staysCorrectWhenTheRobotJumpsAnywhere() {
+    Random random = new Random(11);
+    for (int trial = 0; trial < 40; trial++) {
+      int width = 15;
+      int height = 11;
+      boolean[] wall = new boolean[width * height];
+      Position goal = new Position(13, 9);
+      DStarLite planner = new DStarLite(width, height, new Position(1, 1), goal);
+      for (int round = 0; round < 30; round++) {
+        Position robot = new Position(random.nextInt(width), random.nextInt(height));
+        if (wall[robot.y() * width + robot.x()] || distance(width, height, wall, robot, goal) < 0) {
+          continue;
+        }
+        planner.moveTo(robot);
+        assertEquals(distance(width, height, wall, robot, goal), planner.distance(), "trial " + trial + " round " + round);
+        Position tile = new Position(random.nextInt(width), random.nextInt(height));
+        if (!tile.equals(goal) && !tile.equals(robot)
+            && distanceAfterBlocking(width, height, wall, tile, robot, goal) < Integer.MAX_VALUE) {
+          wall[tile.y() * width + tile.x()] = true;
+          planner.block(tile);
+        }
+      }
+    }
+    DStarLite corridor = new DStarLite(5, 1, new Position(3, 0), new Position(4, 0));
+    assertEquals(1, corridor.distance());
+    corridor.moveTo(new Position(0, 0));
+    assertEquals(4, corridor.distance());
+  }
+
   @Test
   void rejectsBlockingTheGoalAndReportsUnreachableGoals() {
     DStarLite planner = new DStarLite(5, 3, new Position(0, 1), new Position(4, 1));
