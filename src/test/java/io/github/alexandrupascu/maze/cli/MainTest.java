@@ -85,6 +85,26 @@ class MainTest {
   }
 
   @Test
+  void learnWritesCurvesAndAChart(@TempDir Path directory) {
+    Path chart = directory.resolve("chart").resolve("learning.svg");
+    assertEquals(0, run("learn", "--mazes", "2", "--runs", "3", "--cells", "4", "--out", directory.toString(),
+        "--chart", chart.toString()));
+    for (String name : new String[] {"learning.csv", "learning-summary.csv", "learning.md"}) {
+      assertTrue(Files.isRegularFile(directory.resolve(name)), name);
+    }
+    assertTrue(Files.isRegularFile(chart));
+    assertTrue(output().contains("--mazes 2 --runs 3 --cells 4"));
+  }
+
+  @Test
+  void showCanDisplayALaterRun() {
+    assertEquals(0, run("show", "--agent", "dyna-q", "--cells", "5", "--runs", "6"));
+    assertTrue(output().contains(" · run 6: "));
+    assertTrue(output().contains("** run 6 on a shortest route"));
+    assertEquals(2, run("show", "--runs", "1"));
+  }
+
+  @Test
   void benchmarkWritesItsReports(@TempDir Path directory) {
     assertEquals(0, run("benchmark", "--mazes", "2", "--sizes", "4", "--out", directory.toString()));
     for (String name : new String[] {"summary.csv", "search.csv", "summary.md"}) {

@@ -26,7 +26,7 @@ class BenchmarkTest {
   void coversEveryConfigurationAndRobotWithoutFailures() {
     Report report = Benchmark.run(SMALL);
     int configs = Benchmark.LOOPS.size() * Benchmark.LAYOUTS.size() * SMALL.sizes().size();
-    assertEquals(configs * Agent.values().length, report.agents().size());
+    assertEquals(configs * Benchmark.AGENTS.size(), report.agents().size());
     assertEquals(configs, report.searches().size());
     for (AgentSummary row : report.agents()) {
       assertEquals(0, row.failures(), row.agent().id() + " on " + row.config().label());

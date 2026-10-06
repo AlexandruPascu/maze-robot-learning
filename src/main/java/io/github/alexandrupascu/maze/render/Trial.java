@@ -13,29 +13,46 @@ import java.util.HashSet;
 import java.util.List;
 
 /**
- * One robot's two recorded runs on a maze, plus the shortest route that overlaps the second run
- * the most, which shows exactly where that run strayed.
+ * A robot's first and last recorded runs on a maze, plus the shortest route that overlaps the last
+ * run the most, which shows exactly where that run strayed.
  */
-public record Trial(Agent agent, Maze maze, RunResult first, RunResult second, List<Position> shortestRoute) {
+public record Trial(Agent agent, Maze maze, RunResult first, RunResult last, List<Position> shortestRoute) {
 
   /** Runs {@code agent} twice on {@code maze}, recording every tile it visits. */
   public static Trial run(Maze maze, Agent agent, long mazeSeed) {
+    return run(maze, agent, mazeSeed, 2);
+  }
+
+  /** Runs {@code agent} {@code runs} times on {@code maze}, keeping the first and last runs. */
+  public static Trial run(Maze maze, Agent agent, long mazeSeed, int runs) {
+    if (runs < 2) {
+      throw new IllegalArgumentException("a trial needs at least two runs");
+    }
     MazeEnvironment environment = new MazeEnvironment(maze);
     Robot robot = agent.create(maze);
     robot.beginMaze(environment.info(Seeds.mix(mazeSeed, agent.ordinal())));
     int limit = Runner.defaultStepLimit(environment);
     RunResult first = Runner.run(environment, robot, limit, true);
-    RunResult second = Runner.run(environment, robot, limit, true);
+    RunResult last = first;
+    for (int run = 1; run < runs; run++) {
+      last = Runner.run(environment, robot, limit, run == runs - 1);
+    }
     List<Position> shortestRoute =
-        ShortestPath.closestShortestRoute(maze, maze.start(), maze.target(), new HashSet<>(second.trail()));
-    return new Trial(agent, maze, first, second, shortestRoute);
+        ShortestPath.closestShortestRoute(maze, maze.start(), maze.target(), new HashSet<>(last.trail()));
+    return new Trial(agent, maze, first, last, shortestRoute);
   }
 
   public int shortest() {
     return shortestRoute.size() - 1;
   }
 
+  /** The number of the last run, counting from 1. */
+  public int lastRun() {
+    return last.run() + 1;
+  }
+
   public String summary() {
-    return "run 1: " + first.steps() + " steps · run 2: " + second.steps() + " steps · shortest: " + shortest();
+    return "run 1: " + first.steps() + " steps · run " + lastRun() + ": " + last.steps() + " steps · shortest: "
+        + shortest();
   }
 }

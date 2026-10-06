@@ -148,7 +148,7 @@ public final class ReportWriter {
 
   private static String outcomes(Report report) {
     StringBuilder text = new StringBuilder();
-    for (Agent agent : Agent.values()) {
+    for (Agent agent : Benchmark.AGENTS) {
       long failures = 0;
       long collisions = 0;
       for (AgentSummary row : report.agents()) {

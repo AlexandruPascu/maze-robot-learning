@@ -72,7 +72,7 @@ class AsciiRendererTest {
         assertTrue(line.endsWith("\u001b[0m"), "every line resets its colour: " + line);
       }
     }
-    assertEquals(AsciiRenderer.legend(false), strip(AsciiRenderer.legend(true)));
+    assertEquals(AsciiRenderer.legend(false, 2), strip(AsciiRenderer.legend(true, 2)));
     Maze perfect = new MazeSpec(Layout.PRIM, 9, 0).generate(3);
     String route = AsciiRenderer.render(Trial.run(perfect, Agent.COURSEWORK, 3), true);
     assertTrue(route.contains("\u001b[38;5;244;48;5;244m##"), "walls are solid grey blocks");
@@ -85,7 +85,8 @@ class AsciiRendererTest {
     assertEquals("""
         ## wall   .. visited on run 1   ** run 2 on a shortest route
         ~~ run 2 detour   ++ shortest route run 2 missed   S  start   T  target
-        """, AsciiRenderer.legend(false));
+        """, AsciiRenderer.legend(false, 2));
+    assertTrue(AsciiRenderer.legend(false, 30).contains("~~ run 30 detour   ++ shortest route run 30 missed"));
   }
 
   private Trial trial(List<Position> first, List<Position> second) {

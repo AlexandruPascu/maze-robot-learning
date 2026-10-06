@@ -3,10 +3,10 @@
 [![Build and test](https://github.com/AlexandruPascu/maze-robot-learning/actions/workflows/build.yml/badge.svg)](https://github.com/AlexandruPascu/maze-robot-learning/actions/workflows/build.yml)
 
 A robot explores a maze it has never seen, then runs it again using what it learned. This
-repository runs my 2022 university coursework robot alongside two planning robots and an A\* oracle
-on thousands of seeded mazes and measures what each one gains on its second run. One planner proves
-which route is shortest before it finishes its first run, so every later run takes it. The simulator is
-self-contained Java 21, deterministic on every platform, and ready for learned agents.
+repository runs my 2022 university coursework robot alongside two planning robots, three learning
+robots and an A\* oracle on thousands of seeded mazes, and measures what each one gains from run to
+run. One planner proves which route is shortest before it finishes its first run, so every later
+run takes it. The simulator is self-contained Java 21 and deterministic on every platform.
 
 ![Three copies of the same 15x15-cell maze. The coursework robot's second run takes a long detour, the map planner's takes a longer way round, and the route prover's takes a shortest route.](docs/maze.svg)
 
@@ -55,6 +55,39 @@ The [full results](reports/summary.md) also cover 7×7 and 30×30 mazes. They sh
   with 4.0–77.4× less work.** It repairs only what each newly seen wall changes, so its advantage
   grows with the maze.
 
+## Learning across runs
+
+![Learning curves on 15x15 Prim mazes with 10% loops: mean steps per run over 30 runs, on a log scale, for Q-learning, Dyna-Q with 5 and 50 replays, LRTA*, the map planner and the route prover, with the shortest route as a dashed line.](docs/learning.svg)
+
+Each robot ran every maze 30 times and kept what it learned between runs. The mazes are the
+benchmark's first 100 15×15-cell mazes of each of the six types. In the table, "shortest from run"
+is the run from which every later run took a shortest route, averaged over the mazes where that
+happened within 30 runs. The [learning report](reports/learning.md) breaks it down by maze type.
+
+| Robot | What it learns | Shortest from run | Mazes where that happened |
+| --- | --- | ---: | ---: |
+| Q-learning | A value for each move, from step costs alone; it is not told where the target is | never | 0% |
+| Dyna-Q, 5 replays | The same, plus where each move leads, replaying 5 remembered moves per step | 19.5–30.0 | 0–97% |
+| Dyna-Q, 50 replays | The same, replaying 50 remembered moves per step | 10.3–15.1 | 100% |
+| LRTA\* | Distance estimates, starting from the straight-line distance to the target | 13.8–27.2 | 0–95% |
+| Map planner | A map, planned on with D\* Lite | 1.0–2.0 | 5–100% |
+| Route prover | A map, explored until its route is proven shortest | 1.0–2.0 | 100% |
+
+The ranges run across the six maze types. They show:
+
+- **Learning from step costs alone is slow.** Q-learning still averaged 347–625 steps on run 30,
+  against shortest routes of 56–189. It never settled on a shortest route in any of the 600 mazes.
+- **A model of the maze is what speeds learning up.** Replaying remembered moves spreads each
+  lesson through the model. With 50 replays per step, Dyna-Q settled on the shortest route in every
+  maze, by run 10–15 on average. Over 30 runs it walked 18–28% of Q-learning's steps.
+- **Knowing where the target is helps most early on.** On mazes with loops, LRTA\*'s first run took
+  194–782 steps, against 1,469–1,947 for Dyna-Q with 50 replays. Its estimates are local, though,
+  and it settled on the shortest route in 0–95% of mazes, depending on the type.
+- **Here, planning beats learning.** The route prover walked the fewest steps over 30 runs on every
+  maze type, tied with the map planner on backtracker mazes without loops. A planner is what
+  model-based learning becomes when the model is the map itself and the target is known. Learning
+  should earn its place by carrying experience from one maze to the next, which is the next step.
+
 ## Quick start
 
 You need JDK 21 or newer. The Gradle wrapper downloads Gradle itself. On Windows, use `gradlew.bat`.
@@ -63,25 +96,29 @@ You need JDK 21 or newer. The Gradle wrapper downloads Gradle itself. On Windows
 ./gradlew build                                                      # compile and run the tests
 ./gradlew run --args="show --agent route-prover --loops 0.25 --seed 4" # one maze in the terminal
 ./gradlew run --args="benchmark"                                     # about 20 s; rewrites reports/
+./gradlew run --args="learn"                                         # about 15 s; learning curves and chart
 ./gradlew run --args="render"                                        # rewrites docs/maze.svg
 ./gradlew run --args="help"                                          # every option
 ```
 
 `show` draws the maze two characters per tile, so it looks square, under a legend. It compares the
-run-2 route with the shortest route that overlaps it most:
+last run's route (run 2 unless `--runs` says otherwise) with the shortest route that overlaps it
+most:
 
 | Mark | Meaning |
 | --- | --- |
 | `##` | Wall |
 | `..` | Visited on run 1 only |
-| `**` | Run 2 on a shortest route |
-| `~~` | Run 2 detour |
-| `++` | Shortest route that run 2 missed |
+| `**` | Last run on a shortest route |
+| `~~` | Last-run detour |
+| `++` | Shortest route that the last run missed |
 | `S`, `T` | Start and target |
 
 Options select:
 
-- the robot: `coursework`, `map-planner`, `route-prover` or `a-star`;
+- the robot: `coursework`, `map-planner`, `route-prover`, `a-star`, `q-learning`, `dyna-q` (50
+  replays) or `lrta-star`;
+- how many runs to make, for example `--runs 20` to see what a learner does on its 20th run;
 - the layout: `prim` or `backtracker`;
 - the size in cells, the share of loops, a corner or random target, and the seed.
 
@@ -119,6 +156,22 @@ between them, so it reasons about the walls between cells.
 - **The target:** it does not step onto the target until the proof is complete, so run 2 and every
   run after it take a shortest route.
 
+**Q-learning and Dyna-Q.** Learn a value for every move on every tile from the cost of their own
+steps, where each step is worth -1. Neither is told where the target is.
+
+- **Exploration:** untried moves start at the best possible value, so the robot keeps trying new
+  moves until none look better. Ties are broken at random.
+- **Updates:** the maze is deterministic, so each update is exact.
+- **Replay:** Dyna-Q (Sutton, 1990) also remembers where each move led and replays remembered moves
+  after every real step.
+
+**LRTA\*.** Learning Real-Time A\* (Korf, 1990) keeps an estimate of every tile's distance to the
+target, starting from the straight-line Manhattan distance. Each step it moves to the neighbour with
+the lowest one step plus estimate, and raises its own tile's estimate to match. The estimates never
+overshoot the true distance, and over repeated runs they converge on a shortest route.
+
+Like every other robot, the learners see the walls next to them and never walk into one.
+
 **A\* oracle.** Is handed the full map and follows an A\* route using the Manhattan distance, which
 never overestimates on this grid. It sets the lower bound for the other robots. The benchmark also
 runs Dijkstra's algorithm, which is A\* without the heuristic, to measure how much work the
@@ -150,12 +203,14 @@ heuristic saves.
 | `…/sim/` | `MazeEnvironment`, `Robot`, `Runner`, `SearchWork` and the observation types |
 | `…/coursework/` | The ported 2022 controller, its adapter and the `IRobot` re-declaration |
 | `…/agents/` | `MapPlanner`, `RouteProver`, `AStarOracle` and the agent registry |
+| `…/learning/` | `QLearner` (Q-learning and Dyna-Q) and `LrtaStar` |
 | `…/search/` | A\*, Dijkstra's algorithm and D\* Lite |
-| `…/bench/`, `…/render/`, `…/cli/` | Benchmark and reports, SVG and text drawings, command line |
+| `…/bench/` | The two-run benchmark, the learning curves and their reports |
+| `…/render/`, `…/cli/` | SVG and text drawings, the learning chart, command line |
 | `coursework/` | The 2022 files, byte for byte ([notes](coursework/README.md)) |
-| `reports/` | Benchmark results as CSV and Markdown |
+| `reports/` | Benchmark results and learning curves as CSV and Markdown |
 
-`./gradlew build` compiles with all warnings as errors and runs 65 JUnit tests. They cover:
+`./gradlew build` compiles with all warnings as errors and runs 82 JUnit tests. They cover:
 
 - **Mazes:** generator properties (spanning trees, loop counts, recorded seeds).
 - **Simulation:** the simulator's movement and sensing rules.
@@ -165,6 +220,11 @@ heuristic saves.
     enters the target once its route is proven;
   - the depth-first property above;
   - that both map planners make identical moves.
+- **Learning:**
+  - that the learners never walk into a wall they have seen;
+  - that Dyna-Q and Q-learning learn a shortest route, and that replay saves steps;
+  - that LRTA\*'s estimates stay below the true distances and settle on a shortest route;
+  - that the learning curves are deterministic and the chart is well-formed.
 - **Search:**
   - that A\* and Dijkstra agree with breadth-first search;
   - that D\* Lite agrees with a fresh breadth-first search after every wall it learns and wherever
@@ -190,12 +250,9 @@ route replay, and the measurements above replace that description.
 
 ## Next
 
-None of these robots learns across mazes: each maze starts from nothing. The next step is learned
-agents on this simulator and benchmark, judged against the planners rather than the 2022 robot:
-
-- tabular Q-learning and Dyna-Q, with learning curves compared against the two-run robots;
-- a cross-entropy-trained exploration policy, evaluated on maze seeds it never saw in training,
-  aiming for shorter first runs than the map planner and a cheaper proof than the route prover.
+Every robot here, learners included, starts each maze from nothing. The next step is learning across
+mazes: an exploration policy trained with the cross-entropy method on one set of maze seeds and
+tested on seeds it never saw. It aims for shorter first runs than the map planner.
 
 ## Licence
 

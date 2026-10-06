@@ -63,7 +63,7 @@ public final class SvgRenderer {
       }
     }
     svg.append("\"/>\n<polyline fill=\"none\" stroke=\"#2563eb\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" points=\"");
-    List<Position> route = trial.second().trail();
+    List<Position> route = trial.last().trail();
     for (int i = 0; i < route.size(); i++) {
       svg.append(i == 0 ? "" : " ").append(format("%d,%d", centre(route.get(i).x()), centre(route.get(i).y())));
     }

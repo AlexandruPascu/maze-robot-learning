@@ -8,12 +8,12 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Draws a trial for the terminal, two characters per tile so the maze looks square. The run-2 route
- * is split against the shortest route that overlaps it most: where they agree, where run 2 detoured,
- * and where it missed the shortest route. Each tile shows the first that applies: start or target,
- * wall, run 2 on the shortest route, a run-2 detour, a missed part of the shortest route, a tile
- * visited on run 1, open floor. Colour restyles the same characters and changes nothing else, so
- * plain and coloured drawings carry the same information.
+ * Draws a trial for the terminal, two characters per tile so the maze looks square. The last run's
+ * route is split against the shortest route that overlaps it most: where they agree, where the last
+ * run detoured, and where it missed the shortest route. Each tile shows the first that applies:
+ * start or target, wall, the last run on the shortest route, a detour, a missed part of the shortest
+ * route, a tile visited on run 1, open floor. Colour restyles the same characters and changes nothing
+ * else, so plain and coloured drawings carry the same information.
  */
 public final class AsciiRenderer {
   private static final String RESET = "\u001b[0m";
@@ -23,11 +23,12 @@ public final class AsciiRenderer {
   /** Characters, 256-colour ANSI style and legend label for each kind of tile. */
   enum Mark {
     // Fixed palette entries rather than the theme's base colours, which some themes make invisible.
+    // Labels name the last run as %d.
     WALL("##", "38;5;244;48;5;244", "wall"),
     VISITED("..", "38;5;172", "visited on run 1"),
-    ROUTE("**", "1;38;5;33", "run 2 on a shortest route"),
-    DETOUR("~~", "1;38;5;203", "run 2 detour"),
-    MISSED("++", "1;38;5;170", "shortest route run 2 missed"),
+    ROUTE("**", "1;38;5;33", "run %d on a shortest route"),
+    DETOUR("~~", "1;38;5;203", "run %d detour"),
+    MISSED("++", "1;38;5;170", "shortest route run %d missed"),
     START("S ", "1;38;5;16;48;5;34", "start"),
     TARGET("T ", "1;38;5;231;48;5;160", "target"),
     FLOOR("  ", null, null);
@@ -46,7 +47,7 @@ public final class AsciiRenderer {
   public static String render(Trial trial, boolean colour) {
     Maze maze = trial.maze();
     Set<Position> visited = new HashSet<>(trial.first().trail());
-    Set<Position> route = new HashSet<>(trial.second().trail());
+    Set<Position> route = new HashSet<>(trial.last().trail());
     Set<Position> shortest = new HashSet<>(trial.shortestRoute());
     Line line = new Line(colour);
     for (int y = 0; y < maze.height(); y++) {
@@ -75,8 +76,8 @@ public final class AsciiRenderer {
     return line.toString();
   }
 
-  /** A two-line key to the drawing, styled the same way. */
-  public static String legend(boolean colour) {
+  /** A two-line key to the drawing, styled the same way, for a trial whose last run is {@code lastRun}. */
+  public static String legend(boolean colour, int lastRun) {
     Line line = new Line(colour);
     for (List<Mark> row : List.of(
         List.of(Mark.WALL, Mark.VISITED, Mark.ROUTE),
@@ -84,7 +85,7 @@ public final class AsciiRenderer {
       for (int i = 0; i < row.size(); i++) {
         Mark mark = row.get(i);
         line.add(mark.text, mark.style);
-        line.add(" " + mark.label + (i < row.size() - 1 ? "   " : ""), null);
+        line.add(" " + mark.label.replace("%d", String.valueOf(lastRun)) + (i < row.size() - 1 ? "   " : ""), null);
       }
       line.end();
     }

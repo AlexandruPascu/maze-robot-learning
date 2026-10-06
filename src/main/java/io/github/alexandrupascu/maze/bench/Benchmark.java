@@ -27,6 +27,8 @@ public final class Benchmark {
   public static final List<Layout> LAYOUTS = List.of(Layout.PRIM, Layout.BACKTRACKER);
   public static final List<Double> LOOPS = List.of(0.0, 0.10, 0.25);
   public static final List<Integer> DEFAULT_SIZES = List.of(7, 15, 30);
+  /** The robots designed around two runs; the learners are measured over many runs in LearningCurves. */
+  public static final List<Agent> AGENTS = List.of(Agent.COURSEWORK, Agent.MAP_PLANNER, Agent.ROUTE_PROVER, Agent.A_STAR);
 
   private Benchmark() {}
 
@@ -108,7 +110,7 @@ public final class Benchmark {
     List<SearchSummary> searches = new ArrayList<>();
     for (Config config : configs(settings)) {
       List<Tally> tallies = new ArrayList<>();
-      for (Agent agent : Agent.values()) {
+      for (Agent agent : AGENTS) {
         tallies.add(new Tally(agent));
       }
       double openTiles = 0;

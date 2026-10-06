@@ -3,11 +3,14 @@ package io.github.alexandrupascu.maze.cli;
 import io.github.alexandrupascu.maze.Maze;
 import io.github.alexandrupascu.maze.agents.Agent;
 import io.github.alexandrupascu.maze.bench.Benchmark;
+import io.github.alexandrupascu.maze.bench.LearningCurves;
+import io.github.alexandrupascu.maze.bench.LearningReport;
 import io.github.alexandrupascu.maze.bench.ReportWriter;
 import io.github.alexandrupascu.maze.generate.Layout;
 import io.github.alexandrupascu.maze.generate.MazeSpec;
 import io.github.alexandrupascu.maze.generate.TargetPlacement;
 import io.github.alexandrupascu.maze.render.AsciiRenderer;
+import io.github.alexandrupascu.maze.render.LearningChart;
 import io.github.alexandrupascu.maze.render.SvgRenderer;
 import io.github.alexandrupascu.maze.render.Trial;
 import java.io.IOException;
@@ -28,19 +31,26 @@ public final class Main {
       Usage: maze-robot <command> [options]
 
       Commands:
-        show        Draw a maze in the terminal with what a robot did on runs 1 and 2,
-                    a legend, and colour when the terminal shows it
-                      --agent coursework|map-planner|route-prover|a-star  (map-planner)
+        show        Draw a maze in the terminal with what a robot did on its first and
+                    last runs, a legend, and colour when the terminal shows it
+                      --agent coursework|map-planner|route-prover|a-star|
+                              q-learning|dyna-q|lrta-star  (map-planner)
                       --layout prim|backtracker (prim)  --cells N (10)  --loops F (0)
-                      --target corner|random (corner)  --seed S (1)
+                      --target corner|random (corner)  --seed S (1)  --runs N (2)
                       --color auto|always|never (auto; NO_COLOR=1 and FORCE_COLOR=1 also work)
         benchmark   Run every robot on seeded mazes and write CSV and Markdown reports
                       --mazes N (300)  --seed S (2022)  --sizes LIST (7,15,30)  --out DIR (reports)
+        learn       Run every learner many times on each maze; write learning curves and a chart
+                      --mazes N (100)  --runs N (30)  --cells N (15)  --seed S (2022)
+                      --out DIR (reports)  --chart FILE (docs/learning.svg)
         render      Draw the coursework robot, map planner and route prover on one maze as SVG
                       --layout prim|backtracker (prim)  --cells N (15)  --loops F (0.1)
                       --target corner|random (corner)  --seed S (1)  --out FILE (docs/maze.svg)
         help        Show this message
       """;
+
+  /** The maze type drawn in the learning chart: Prim mazes with a few loops separate the robots well. */
+  private static final LearningCurves.Family CHART_FAMILY = new LearningCurves.Family(Layout.PRIM, 0.1);
 
   private Main() {}
 
@@ -58,9 +68,10 @@ public final class Main {
     }
     try {
       switch (args[0]) {
-        case "show" -> show(options(args, Set.of("agent", "layout", "cells", "loops", "target", "seed", "color", "colour")),
+        case "show" -> show(options(args, Set.of("agent", "layout", "cells", "loops", "target", "seed", "runs", "color", "colour")),
             out, terminal);
         case "benchmark" -> benchmark(options(args, Set.of("mazes", "seed", "sizes", "out")), out);
+        case "learn" -> learn(options(args, Set.of("mazes", "runs", "cells", "seed", "out", "chart")), out);
         case "render" -> render(options(args, Set.of("layout", "cells", "loops", "target", "seed", "out")), out);
         default -> throw new IllegalArgumentException("unknown command '" + args[0] + "'");
       }
@@ -80,11 +91,11 @@ public final class Main {
     MazeSpec spec = spec(options, 10, 0);
     long seed = number(options, "seed", 1);
     boolean colour = terminal.colour(ColourMode.parse(options.getOrDefault("color", options.getOrDefault("colour", "auto"))));
-    Trial trial = Trial.run(spec.generate(seed), agent, seed);
+    Trial trial = Trial.run(spec.generate(seed), agent, seed, whole(options, "runs", 2));
     out.printf(Locale.ROOT, "%s on a %s %dx%d maze, %d%% loops, seed %d%n", agent.title(),
         spec.layout().id(), spec.cells(), spec.cells(), Math.round(spec.loops() * 100), seed);
     out.println(trial.summary());
-    printLines(out, AsciiRenderer.legend(colour));
+    printLines(out, AsciiRenderer.legend(colour, trial.lastRun()));
     out.println();
     printLines(out, AsciiRenderer.render(trial, colour));
   }
@@ -106,6 +117,24 @@ public final class Main {
     printLines(out, ReportWriter.markdown(report));
     out.println();
     out.println("Wrote summary.csv, search.csv and summary.md to " + directory);
+  }
+
+  private static void learn(Map<String, String> options, PrintStream out) throws IOException {
+    LearningCurves.Settings defaults = LearningCurves.Settings.defaults();
+    LearningCurves.Settings settings = new LearningCurves.Settings(
+        whole(options, "mazes", defaults.mazes()), whole(options, "runs", defaults.runs()),
+        whole(options, "cells", defaults.cells()), number(options, "seed", defaults.seed()));
+    LearningCurves.Result result = LearningCurves.run(settings);
+    Path directory = Path.of(options.getOrDefault("out", "reports"));
+    LearningReport.write(result, directory);
+    Path chart = Path.of(options.getOrDefault("chart", "docs/learning.svg"));
+    if (chart.getParent() != null) {
+      Files.createDirectories(chart.getParent());
+    }
+    Files.writeString(chart, LearningChart.render(result, CHART_FAMILY), StandardCharsets.UTF_8);
+    printLines(out, LearningReport.markdown(result));
+    out.println();
+    out.println("Wrote learning.csv, learning-summary.csv and learning.md to " + directory + ", and " + chart);
   }
 
   private static void render(Map<String, String> options, PrintStream out) throws IOException {
