@@ -28,12 +28,16 @@ class RouteProverTest {
           for (long seed = 0; seed < 12; seed++) {
             Maze maze = new MazeSpec(layout, cells, loops, target).generate(seed);
             RouteProver prover = new RouteProver();
-            List<RunResult> runs = twoRuns(prover, maze);
-            int shortest = TestMazes.distance(maze, maze.start(), maze.target());
-            assertTrue(runs.get(0).reachedTarget() && runs.get(1).reachedTarget());
-            assertEquals(0, runs.get(0).collisions() + runs.get(1).collisions());
-            assertTrue(prover.proven(), "the target is entered only once the route is proven");
-            assertEquals(shortest, runs.get(1).steps(), layout.id() + " loops " + loops + " seed " + seed);
+            MazeEnvironment environment = new MazeEnvironment(maze);
+            prover.beginMaze(environment.info(0));
+            int limit = Runner.defaultStepLimit(environment);
+            RunResult first = Runner.run(environment, prover, limit, false);
+            // Checked before run 2: entering the target ends run 1, so the proof must already hold.
+            assertTrue(first.reachedTarget() && prover.proven(), "the target is entered only once the route is proven");
+            RunResult second = Runner.run(environment, prover, limit, false);
+            assertEquals(0, first.collisions() + second.collisions());
+            assertEquals(TestMazes.distance(maze, maze.start(), maze.target()), second.steps(),
+                layout.id() + " loops " + loops + " seed " + seed);
           }
         }
       }
