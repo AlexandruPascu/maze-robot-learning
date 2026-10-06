@@ -30,13 +30,13 @@ public final class Main {
       Commands:
         show        Draw a maze in the terminal with what a robot did on runs 1 and 2,
                     a legend, and colour when the terminal shows it
-                      --agent coursework|map-planner|a-star  (default map-planner)
+                      --agent coursework|map-planner|route-prover|a-star  (map-planner)
                       --layout prim|backtracker  --cells N (10)  --loops F (0)
                       --target corner|random  --seed S (1)
                       --color auto|always|never (auto; NO_COLOR=1 also turns it off)
         benchmark   Run every robot on seeded mazes and write CSV and Markdown reports
                       --mazes N (300)  --seed S (2022)  --sizes 7,15,30  --out DIR (reports)
-        render      Draw the coursework robot and the map planner on one maze as SVG
+        render      Draw the coursework robot, map planner and route prover on one maze as SVG
                       --layout prim|backtracker  --cells N (15)  --loops F (0.1)
                       --target corner|random  --seed S (1)  --out FILE (docs/maze.svg)
         help        Show this message
@@ -112,9 +112,10 @@ public final class Main {
     MazeSpec spec = spec(options, 15, 0.1);
     long seed = number(options, "seed", 1);
     Maze maze = spec.generate(seed);
-    List<Trial> trials = List.of(Trial.run(maze, Agent.COURSEWORK, seed), Trial.run(maze, Agent.MAP_PLANNER, seed));
+    List<Trial> trials = List.of(Trial.run(maze, Agent.COURSEWORK, seed), Trial.run(maze, Agent.MAP_PLANNER, seed),
+        Trial.run(maze, Agent.ROUTE_PROVER, seed));
     String description = String.format(Locale.ROOT,
-        "The coursework robot and the map planner on the same %s %dx%d maze with %d%% loops (seed %d)",
+        "The coursework robot, the map planner and the route prover on the same %s %dx%d maze with %d%% loops (seed %d)",
         spec.layout().id(), spec.cells(), spec.cells(), Math.round(spec.loops() * 100), seed);
     Path file = Path.of(options.getOrDefault("out", "docs/maze.svg"));
     if (file.getParent() != null) {

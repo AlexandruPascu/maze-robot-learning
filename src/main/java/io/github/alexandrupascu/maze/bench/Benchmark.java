@@ -2,6 +2,7 @@ package io.github.alexandrupascu.maze.bench;
 
 import io.github.alexandrupascu.maze.Maze;
 import io.github.alexandrupascu.maze.agents.Agent;
+import io.github.alexandrupascu.maze.agents.MapPlanner;
 import io.github.alexandrupascu.maze.generate.Layout;
 import io.github.alexandrupascu.maze.generate.MazeSpec;
 import io.github.alexandrupascu.maze.search.ShortestPath;
@@ -9,6 +10,7 @@ import io.github.alexandrupascu.maze.sim.MazeEnvironment;
 import io.github.alexandrupascu.maze.sim.Robot;
 import io.github.alexandrupascu.maze.sim.RunResult;
 import io.github.alexandrupascu.maze.sim.Runner;
+import io.github.alexandrupascu.maze.sim.SearchWork;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,11 +68,26 @@ public final class Benchmark {
       double medianSpeedup,
       double run2OverShortest,
       int run2Shortest,
+      double run1Expansions,
       long collisions,
       int failures) {}
 
-  /** Full-map search effort on one configuration, averaged over its mazes. */
-  public record SearchSummary(Config config, int mazes, double openTiles, double dijkstraExpanded, double aStarExpanded) {}
+  /**
+   * Search effort on one configuration, averaged over its mazes: A* and Dijkstra on the full map,
+   * and the map planner's first run with D* Lite against the same robot searching from scratch,
+   * including how many mazes they crossed by exactly the same moves.
+   */
+  public record SearchSummary(
+      Config config,
+      int mazes,
+      double openTiles,
+      double dijkstraExpanded,
+      double aStarExpanded,
+      double scratchSteps,
+      double scratchExpanded,
+      double incrementalSteps,
+      double incrementalExpanded,
+      int sameMoves) {}
 
   public record Report(Settings settings, List<AgentSummary> agents, List<SearchSummary> searches) {}
 
@@ -97,6 +114,11 @@ public final class Benchmark {
       double openTiles = 0;
       double dijkstraExpanded = 0;
       double aStarExpanded = 0;
+      double scratchSteps = 0;
+      double scratchExpanded = 0;
+      double incrementalSteps = 0;
+      double incrementalExpanded = 0;
+      int sameMoves = 0;
       for (int i = 0; i < settings.mazes(); i++) {
         long mazeSeed = config.mazeSeed(settings.seed(), i);
         Maze maze = config.spec().generate(mazeSeed);
@@ -107,14 +129,32 @@ public final class Benchmark {
         for (Tally tally : tallies) {
           tally.add(maze, Seeds.mix(mazeSeed, tally.agent.ordinal()), aStar.length());
         }
+        MapPlanner scratch = MapPlanner.replanningFromScratch();
+        MapPlanner incremental = new MapPlanner();
+        RunResult fromScratch = firstRun(maze, scratch);
+        RunResult repaired = firstRun(maze, incremental);
+        scratchSteps += fromScratch.steps();
+        scratchExpanded += scratch.expansions();
+        incrementalSteps += repaired.steps();
+        incrementalExpanded += incremental.expansions();
+        if (fromScratch.trail().equals(repaired.trail())) {
+          sameMoves++;
+        }
       }
       int mazes = settings.mazes();
       for (Tally tally : tallies) {
         agents.add(tally.summary(config));
       }
-      searches.add(new SearchSummary(config, mazes, openTiles / mazes, dijkstraExpanded / mazes, aStarExpanded / mazes));
+      searches.add(new SearchSummary(config, mazes, openTiles / mazes, dijkstraExpanded / mazes, aStarExpanded / mazes,
+          scratchSteps / mazes, scratchExpanded / mazes, incrementalSteps / mazes, incrementalExpanded / mazes, sameMoves));
     }
     return new Report(settings, List.copyOf(agents), List.copyOf(searches));
+  }
+
+  private static RunResult firstRun(Maze maze, MapPlanner planner) {
+    MazeEnvironment environment = new MazeEnvironment(maze);
+    planner.beginMaze(environment.info(0));
+    return Runner.run(environment, planner, Runner.defaultStepLimit(environment), true);
   }
 
   private static final class Tally {
@@ -125,6 +165,7 @@ public final class Benchmark {
     private long shortest;
     private double overShortest;
     private int run2Shortest;
+    private long run1Expansions;
     private long collisions;
     private int finished;
     private int failures;
@@ -139,6 +180,7 @@ public final class Benchmark {
       robot.beginMaze(environment.info(robotSeed));
       int limit = Runner.defaultStepLimit(environment);
       RunResult first = Runner.run(environment, robot, limit, false);
+      long firstRunWork = robot instanceof SearchWork planner ? planner.expansions() : 0;
       RunResult second = first.reachedTarget() ? Runner.run(environment, robot, limit, false) : null;
       collisions += first.collisions() + (second == null ? 0 : second.collisions());
       if (second == null || !second.reachedTarget()) {
@@ -146,6 +188,7 @@ public final class Benchmark {
         return;
       }
       finished++;
+      run1Expansions += firstRunWork;
       run1 += first.steps();
       run2 += second.steps();
       shortest += shortestSteps;
@@ -171,6 +214,7 @@ public final class Benchmark {
           median,
           overShortest / finished,
           run2Shortest,
+          (double) run1Expansions / finished,
           collisions,
           failures);
     }

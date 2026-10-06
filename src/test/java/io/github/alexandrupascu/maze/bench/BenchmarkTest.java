@@ -45,6 +45,18 @@ class BenchmarkTest {
       if (row.config().loops() == 0 && row.agent() != Agent.A_STAR) {
         assertEquals(row.mazes(), row.run2Shortest(), row.agent().id() + " replays a shortest route on perfect mazes");
       }
+      if (row.agent() == Agent.ROUTE_PROVER) {
+        assertEquals(row.mazes(), row.run2Shortest(), "the route prover's second run is always shortest");
+      }
+    }
+  }
+
+  @Test
+  void dStarLiteMatchesTheFromScratchPlannerStepForStep() {
+    for (Benchmark.SearchSummary row : Benchmark.run(SMALL).searches()) {
+      assertEquals(row.mazes(), row.sameMoves(), row.config().label());
+      assertEquals(row.scratchSteps(), row.incrementalSteps(), row.config().label());
+      assertTrue(row.incrementalExpanded() < row.scratchExpanded(), row.config().label());
     }
   }
 
@@ -55,7 +67,7 @@ class BenchmarkTest {
       Locale.setDefault(Locale.GERMANY);
       String csv = ReportWriter.agentsCsv(Benchmark.run(new Benchmark.Settings(2, 1, List.of(4))));
       for (String line : csv.split("\n")) {
-        assertEquals(13, line.split(",", -1).length, line);
+        assertEquals(14, line.split(",", -1).length, line);
       }
       assertTrue(csv.contains("."), "decimals use a dot");
     } finally {

@@ -8,6 +8,7 @@ import io.github.alexandrupascu.maze.sim.Robot;
 public enum Agent {
   COURSEWORK("coursework", "Coursework explorer (2022)"),
   MAP_PLANNER("map-planner", "Map planner"),
+  ROUTE_PROVER("route-prover", "Route prover"),
   A_STAR("a-star", "A* oracle");
 
   private final String id;
@@ -31,6 +32,7 @@ public enum Agent {
     return switch (this) {
       case COURSEWORK -> new CourseworkRobot();
       case MAP_PLANNER -> new MapPlanner();
+      case ROUTE_PROVER -> new RouteProver();
       case A_STAR -> new AStarOracle(maze);
     };
   }
@@ -41,6 +43,6 @@ public enum Agent {
         return agent;
       }
     }
-    throw new IllegalArgumentException("unknown agent '" + id + "' (use coursework, map-planner or a-star)");
+    throw new IllegalArgumentException("unknown agent '" + id + "' (use coursework, map-planner, route-prover or a-star)");
   }
 }
