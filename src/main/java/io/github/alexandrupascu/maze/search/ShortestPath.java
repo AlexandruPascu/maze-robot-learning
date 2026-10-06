@@ -12,8 +12,10 @@ import java.util.Set;
 
 /** Shortest routes on a fully known maze, where every move costs one step. */
 public final class ShortestPath {
-  private static final int INDEX_BITS = 22;
-  private static final int COST_BITS = 20;
+  // A queue key packs the estimate, the cost and the tile index into one long: 21 bits each for the
+  // index and cost, and the estimate above them must stay below 2^21 to keep the key positive.
+  private static final int INDEX_BITS = 21;
+  private static final int COST_BITS = 21;
   private static final int MAX_COST = (1 << COST_BITS) - 1;
 
   private ShortestPath() {}
@@ -108,7 +110,8 @@ public final class ShortestPath {
   private static Result search(Maze maze, Position from, Position to, boolean heuristic) {
     int width = maze.width();
     int tiles = width * maze.height();
-    if (tiles > 1 << INDEX_BITS) {
+    // A route is shorter than the tile count, and the heuristic adds at most width + height.
+    if ((long) tiles + width + maze.height() >= 1L << COST_BITS) {
       throw new IllegalArgumentException("maze too large for the search queue encoding");
     }
     int[] cost = new int[tiles];

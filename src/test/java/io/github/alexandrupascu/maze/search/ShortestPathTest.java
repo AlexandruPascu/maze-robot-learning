@@ -65,6 +65,19 @@ class ShortestPathTest {
     }
   }
 
+  // The queue packs costs into fixed bits; mazes too big for them are refused rather than mis-ordered.
+  @Test
+  void refusesMazesTooLargeForTheQueueEncoding() {
+    int size = 1449;
+    boolean[] open = new boolean[size * size];
+    for (int x = 1; x < size - 1; x++) {
+      open[size + x] = true;
+    }
+    Maze corridor = new Maze(size, size, open, new Position(1, 1), new Position(size - 2, 1));
+    assertThrows(IllegalArgumentException.class, () -> ShortestPath.aStar(corridor, corridor.start(), corridor.target()));
+    assertThrows(IllegalArgumentException.class, () -> new MazeSpec(Layout.PRIM, 701, 0));
+  }
+
   @Test
   void unreachableTargetsAreReported() {
     Maze sealed = TestMazes.parse(

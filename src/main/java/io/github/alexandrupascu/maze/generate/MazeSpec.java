@@ -21,8 +21,8 @@ public record MazeSpec(Layout layout, int cells, double loops, TargetPlacement t
   public MazeSpec {
     Objects.requireNonNull(layout);
     Objects.requireNonNull(target);
-    if (cells < 2 || cells > 1000) {
-      throw new IllegalArgumentException("cells must be between 2 and 1000");
+    if (cells < 2 || cells > 700) {
+      throw new IllegalArgumentException("cells must be between 2 and 700");
     }
     if (!(loops >= 0 && loops <= 1)) {
       throw new IllegalArgumentException("loops must be a fraction between 0 and 1");
