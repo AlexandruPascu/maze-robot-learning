@@ -153,7 +153,7 @@ heuristic saves.
 | `coursework/` | The 2022 files, byte for byte ([notes](coursework/README.md)) |
 | `reports/` | Benchmark results as CSV and Markdown |
 
-`./gradlew build` compiles with all warnings as errors and runs 60 JUnit tests. They cover:
+`./gradlew build` compiles with all warnings as errors and runs 61 JUnit tests. They cover:
 
 - **Mazes:** generator properties (spanning trees, loop counts, recorded seeds).
 - **Simulation:** the simulator's movement and sensing rules.

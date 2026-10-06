@@ -47,6 +47,14 @@ class MainTest {
     assertFalse(text.contains("\u001b"), "no colour when output is not a terminal");
   }
 
+  // Only bites where the separator is not a bare line feed, as on Windows.
+  @Test
+  void everyLineEndsWithThePlatformSeparator() {
+    assertEquals(0, run("show", "--cells", "4"));
+    String raw = out.toString(StandardCharsets.UTF_8);
+    assertFalse(raw.replace(System.lineSeparator(), "").contains("\n"), "no bare line feeds mixed into the output");
+  }
+
   @Test
   void colourFollowsTheFlagAndTheEnvironment() {
     assertEquals(0, run(new Terminal(Map.of(), true, false), "show", "--cells", "5"));
@@ -91,8 +99,9 @@ class MainTest {
         new PrintStream(err, true, StandardCharsets.UTF_8), terminal);
   }
 
+  // Output uses the platform's line endings; the assertions compare content.
   private String output() {
-    return out.toString(StandardCharsets.UTF_8);
+    return out.toString(StandardCharsets.UTF_8).replace(System.lineSeparator(), "\n");
   }
 
   private String errors() {

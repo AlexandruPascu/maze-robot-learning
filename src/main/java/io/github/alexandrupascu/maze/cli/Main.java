@@ -53,7 +53,7 @@ public final class Main {
 
   static int run(String[] args, PrintStream out, PrintStream err, Terminal terminal) {
     if (args.length == 0 || Set.of("help", "--help", "-h").contains(args[0])) {
-      out.print(USAGE);
+      printLines(out, USAGE);
       return 0;
     }
     try {
@@ -84,9 +84,9 @@ public final class Main {
     out.printf(Locale.ROOT, "%s on a %s %dx%d maze, %d%% loops, seed %d%n", agent.title(),
         spec.layout().id(), spec.cells(), spec.cells(), Math.round(spec.loops() * 100), seed);
     out.println(trial.summary());
-    out.print(AsciiRenderer.legend(colour));
+    printLines(out, AsciiRenderer.legend(colour));
     out.println();
-    out.print(AsciiRenderer.render(trial, colour));
+    printLines(out, AsciiRenderer.render(trial, colour));
   }
 
   private static void benchmark(Map<String, String> options, PrintStream out) throws IOException {
@@ -103,7 +103,7 @@ public final class Main {
     Benchmark.Report report = Benchmark.run(settings);
     Path directory = Path.of(options.getOrDefault("out", "reports"));
     ReportWriter.write(report, directory);
-    out.print(ReportWriter.markdown(report));
+    printLines(out, ReportWriter.markdown(report));
     out.println();
     out.println("Wrote summary.csv, search.csv and summary.md to " + directory);
   }
@@ -126,6 +126,20 @@ public final class Main {
       out.println(trial.agent().title() + ": " + trial.summary());
     }
     out.println("Wrote " + file);
+  }
+
+  // Text is built with '\n' breaks; println writes each line with the platform's own line ending.
+  private static void printLines(PrintStream out, String text) {
+    int start = 0;
+    while (start < text.length()) {
+      int end = text.indexOf('\n', start);
+      if (end < 0) {
+        out.print(text.substring(start));
+        return;
+      }
+      out.println(text.substring(start, end));
+      start = end + 1;
+    }
   }
 
   private static MazeSpec spec(Map<String, String> options, int cells, double loops) {
