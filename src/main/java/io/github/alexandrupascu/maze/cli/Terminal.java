@@ -2,6 +2,8 @@ package io.github.alexandrupascu.maze.cli;
 
 import java.io.Console;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -11,13 +13,24 @@ import java.util.Map;
  */
 record Terminal(Map<String, String> environment, boolean interactive, boolean windows) {
   static final String GRADLE_HINT = "MAZE_ROBOT_VIA_GRADLE";
+  /** The only environment variables colour detection reads. */
+  static final List<String> VARIABLES =
+      List.of("NO_COLOR", "FORCE_COLOR", "TERM", GRADLE_HINT, "WT_SESSION", "TERM_PROGRAM", "ANSICON", "ConEmuANSI");
 
   Terminal {
     environment = Map.copyOf(environment);
   }
 
+  // Copies just those variables, so nothing else from the environment can leak into output.
   static Terminal detect() {
-    return new Terminal(System.getenv(), stdoutIsTerminal(), System.getProperty("os.name", "").startsWith("Windows"));
+    Map<String, String> environment = new HashMap<>();
+    for (String name : VARIABLES) {
+      String value = System.getenv(name);
+      if (value != null) {
+        environment.put(name, value);
+      }
+    }
+    return new Terminal(environment, stdoutIsTerminal(), System.getProperty("os.name", "").startsWith("Windows"));
   }
 
   boolean colour(ColourMode mode) {
