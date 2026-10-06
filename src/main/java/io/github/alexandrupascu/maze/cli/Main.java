@@ -31,14 +31,14 @@ public final class Main {
         show        Draw a maze in the terminal with what a robot did on runs 1 and 2,
                     a legend, and colour when the terminal shows it
                       --agent coursework|map-planner|route-prover|a-star  (map-planner)
-                      --layout prim|backtracker  --cells N (10)  --loops F (0)
-                      --target corner|random  --seed S (1)
-                      --color auto|always|never (auto; NO_COLOR=1 also turns it off)
+                      --layout prim|backtracker (prim)  --cells N (10)  --loops F (0)
+                      --target corner|random (corner)  --seed S (1)
+                      --color auto|always|never (auto; NO_COLOR=1 and FORCE_COLOR=1 also work)
         benchmark   Run every robot on seeded mazes and write CSV and Markdown reports
-                      --mazes N (300)  --seed S (2022)  --sizes 7,15,30  --out DIR (reports)
+                      --mazes N (300)  --seed S (2022)  --sizes LIST (7,15,30)  --out DIR (reports)
         render      Draw the coursework robot, map planner and route prover on one maze as SVG
-                      --layout prim|backtracker  --cells N (15)  --loops F (0.1)
-                      --target corner|random  --seed S (1)  --out FILE (docs/maze.svg)
+                      --layout prim|backtracker (prim)  --cells N (15)  --loops F (0.1)
+                      --target corner|random (corner)  --seed S (1)  --out FILE (docs/maze.svg)
         help        Show this message
       """;
 

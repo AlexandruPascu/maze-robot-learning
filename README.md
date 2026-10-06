@@ -5,12 +5,12 @@
 A robot explores a maze it has never seen, then runs it again using what it learned. This
 repository runs my 2022 university coursework robot alongside two planning robots and an A\* oracle
 on thousands of seeded mazes and measures what each one gains on its second run. One planner proves
-the shortest route before it finishes its first run, so every later run takes it. The simulator is
+which route is shortest before it finishes its first run, so every later run takes it. The simulator is
 self-contained Java 21, deterministic on every platform, and ready for learned agents.
 
-![Three copies of the same 15x15-cell maze. The coursework robot's second run loops back on itself, the map planner's takes a longer way round, and the route prover's takes the shortest route.](docs/maze.svg)
+![Three copies of the same 15x15-cell maze. The coursework robot's second run takes a long detour, the map planner's takes a longer way round, and the route prover's takes a shortest route.](docs/maze.svg)
 
-*One Prim maze, 15×15 cells with 10% of internal walls removed, seed 1. Regenerate it with
+*One Prim maze of 15×15 cells, with 10% of the walls left after carving knocked through, seed 1. Regenerate it with
 `./gradlew run --args="render"`.*
 
 ## Results
@@ -31,28 +31,28 @@ The [full results](reports/summary.md) also cover 7×7 and 30×30 mazes. They sh
 
 - **Perfect mazes have one route, and all three robots replay it.** Run 2 was a shortest route in
   every maze, for every robot.
-- **The 2022 claim of "4x fewer steps on the second run" depends on the maze.** The median gain is
-  3.7× on 7×7 Prim mazes and 14.7× at 30×30. It is only 1.4–2.4× on backtracker mazes, whose single
-  route already threads through much of the maze.
+- **The 2022 claim of "an average of 4x steps decrease on the 2nd run" depends on the maze.** On
+  perfect mazes the median gain is 3.7× at 7×7 Prim and 14.7× at 30×30. It is only 1.4–2.4× on
+  perfect backtracker mazes, whose single route already threads through much of the maze.
 - **Loops break replay.** The coursework robot repeats its exploration trail, detours included. Its
   run 2 averages 1.7–13.1× the shortest route on mazes with loops. The map planner plans a fresh
   route on its map and stays within 1.1–1.5×.
-- **The route prover's second run was the shortest route in all 5,400 benchmark mazes.**
+- **The route prover's second run was a shortest route in all 5,400 benchmark mazes.**
   - **Perfect mazes:** its first run is 2–6% shorter than the map planner's on Prim mazes and the
     same on backtracker mazes.
-  - **Mazes with loops:** the proof costs extra exploration on run 1, for example 256 steps instead
-    of 188 on 15×15 Prim mazes with 10% loops. The prover has walked fewer steps in total by the
+  - **Mazes with loops:** the proof costs extra exploration on run 1, for example 256.1 steps instead
+    of 187.5 on 15×15 Prim mazes with 10% loops. The prover has walked fewer steps in total by the
     5th to 17th run of the same maze.
-- **On backtracker mazes the first run of both planners is already a shortest route.** This held in
-  all 900 benchmark mazes, and tests check it with random targets. It follows from how depth-first
+- **On perfect backtracker mazes the first run of both planners is already a shortest route.** This
+  held in all 900 such benchmark mazes, and tests check it with random targets. It follows from how depth-first
   carving works: every wall separates a cell from one of its ancestors in the carving tree. Each side
   branch is therefore sealed by walls the robot saw on its way in, and an optimistic planner never
   enters one. Prim mazes have no such guarantee.
-- **A\* finds the same routes as Dijkstra's algorithm while expanding 8–77% fewer tiles.** The
+- **A\* finds routes as short as Dijkstra's algorithm while expanding 8–77% fewer tiles.** The
   heuristic helps least on backtracker mazes without loops, whose winding corridors point away from
   the target.
 - **D\* Lite made exactly the same moves as searching again from scratch in every benchmark maze,
-  with 4.0–77.5× less work.** It repairs only what each newly seen wall changes, so its advantage
+  with 4.0–77.4× less work.** It repairs only what each newly seen wall changes, so its advantage
   grows with the maze.
 
 ## Quick start
@@ -85,9 +85,11 @@ Options select:
 - the layout: `prim` or `backtracker`;
 - the size in cells, the share of loops, a corner or random target, and the seed.
 
-The drawing is in colour when the output reaches a terminal, including through `./gradlew run`.
-Colour only restyles the same characters. `--color always` or `--color never` overrides the
-detection, and so does `NO_COLOR=1`; an explicit flag wins.
+The drawing is in colour when the output reaches a terminal. Through `./gradlew run`, which hides
+the terminal from the program, it assumes one whenever `TERM` names a terminal type, so add
+`--color never` when redirecting that command's output to a file. Colour only restyles the same
+characters. `NO_COLOR=1` turns it off and `FORCE_COLOR=1` turns it on; `--color always` or
+`--color never` beats both.
 
 ## The robots
 
@@ -125,7 +127,7 @@ heuristic saves.
 ## The simulator
 
 - **Mazes:** a maze is a grid of wall and floor tiles with cells on odd coordinates. A perfect maze
-  is carved by randomized Prim's algorithm or a recursive backtracker, starting from the top-left
+  is carved by randomised Prim's algorithm or a recursive backtracker, starting from the top-left
   cell. Loops come from knocking through a share of the remaining walls between cells. The target is
   the bottom-right cell or a random one.
 - **Sensing and moving:** sensing matches the coursework framework. Before each step a robot sees its
@@ -136,8 +138,8 @@ heuristic saves.
   `afterStep` reports every move's outcome, ready for agents that learn from feedback.
 - **Determinism:** all randomness is seeded through `java.util.Random`, whose algorithm is specified
   exactly. The same seed therefore reproduces a maze and a robot's choices on any JVM and operating
-  system. CI regenerates the reports and the image on Linux, macOS and Windows and fails if a single
-  byte changes.
+  system. CI builds and tests on Linux, macOS and Windows with Java 21, and on Linux with Java 25.
+  It also regenerates the reports and the image and fails if a single byte changes.
 
 ## Code and tests
 
@@ -153,7 +155,7 @@ heuristic saves.
 | `coursework/` | The 2022 files, byte for byte ([notes](coursework/README.md)) |
 | `reports/` | Benchmark results as CSV and Markdown |
 
-`./gradlew build` compiles with all warnings as errors and runs 61 JUnit tests. They cover:
+`./gradlew build` compiles with all warnings as errors and runs 65 JUnit tests. They cover:
 
 - **Mazes:** generator properties (spanning trees, loop counts, recorded seeds).
 - **Simulation:** the simulator's movement and sensing rules.
@@ -165,8 +167,10 @@ heuristic saves.
   - that both map planners make identical moves.
 - **Search:**
   - that A\* and Dijkstra agree with breadth-first search;
-  - that D\* Lite agrees with a fresh breadth-first search after every wall it learns;
-  - that the route used for drawings is a shortest route overlapping run 2 as much as possible.
+  - that D\* Lite agrees with a fresh breadth-first search after every wall it learns and wherever
+    the robot moves;
+  - that the route used for drawings is the shortest route overlapping run 2 the most, checked
+    against every shortest route on small mazes.
 - **Drawings:** the terminal marks, that colour changes nothing but styling, and when colour is used
   (terminals, `./gradlew run`, `NO_COLOR`, `FORCE_COLOR`, Windows consoles).
 - **Reports and CLI:** report determinism, including under a non-English locale, and the command
@@ -181,7 +185,7 @@ not included. The simulator here is an independent implementation of what the ro
 sensing, been-before marks and repeated runs.
 
 The 2022 description presented the robot as a mix of Dijkstra's, Trémaux's and A\* algorithms
-forming an "iterative machine learning" solver. The code is a randomized depth-first explorer with
+forming an "Iterative Machine Learning maze solver robot". The code is a randomised depth-first explorer with
 route replay, and the measurements above replace that description.
 
 ## Next
@@ -193,6 +197,6 @@ agents on this simulator and benchmark, judged against the planners rather than 
 - a cross-entropy-trained exploration policy, evaluated on maze seeds it never saw in training,
   aiming for shorter first runs than the map planner and a cheaper proof than the route prover.
 
-## License
+## Licence
 
 [MIT](LICENSE)

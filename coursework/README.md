@@ -30,5 +30,5 @@ The original README said:
 The code does not use Dijkstra's algorithm, A\* or machine learning. It explores at random,
 depth first, using the framework's been-before marks in the spirit of Trémaux's algorithm, keeps a
 stack of the cells on its current route, and replays that stack on the second run. The "4x" holds
-for small Prim mazes (a median of 3.7× fewer steps at 7×7 cells) but depends heavily on the maze;
+for small perfect Prim mazes (a median of 3.7× fewer steps at 7×7 cells) but depends heavily on the maze;
 see the [benchmark results](../reports/summary.md).

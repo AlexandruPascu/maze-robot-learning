@@ -4,9 +4,9 @@ import java.util.Locale;
 
 /** The algorithm that carves the perfect maze before any loops are added. */
 public enum Layout {
-  /** Randomized Prim's algorithm: a bushy tree with many short dead ends. */
+  /** Randomised Prim's algorithm: a bushy tree with many short dead ends. */
   PRIM,
-  /** Recursive backtracker (randomized depth-first search): long, winding corridors. */
+  /** Recursive backtracker (randomised depth-first search): long, winding corridors. */
   BACKTRACKER;
 
   public String id() {
