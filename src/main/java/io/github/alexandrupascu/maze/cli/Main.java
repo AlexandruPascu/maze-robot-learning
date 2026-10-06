@@ -28,10 +28,12 @@ public final class Main {
       Usage: maze-robot <command> [options]
 
       Commands:
-        show        Print a maze with a robot's run-1 coverage (.) and run-2 route (*)
+        show        Draw a maze in the terminal with what a robot did on runs 1 and 2,
+                    a legend, and colour when the terminal shows it
                       --agent coursework|map-planner|a-star  (default map-planner)
                       --layout prim|backtracker  --cells N (10)  --loops F (0)
                       --target corner|random  --seed S (1)
+                      --color auto|always|never (auto; NO_COLOR=1 also turns it off)
         benchmark   Run every robot on seeded mazes and write CSV and Markdown reports
                       --mazes N (300)  --seed S (2022)  --sizes 7,15,30  --out DIR (reports)
         render      Draw the coursework robot and the map planner on one maze as SVG
@@ -43,20 +45,21 @@ public final class Main {
   private Main() {}
 
   public static void main(String[] args) {
-    int status = run(args, System.out, System.err);
+    int status = run(args, System.out, System.err, Terminal.detect());
     if (status != 0) {
       System.exit(status);
     }
   }
 
-  static int run(String[] args, PrintStream out, PrintStream err) {
+  static int run(String[] args, PrintStream out, PrintStream err, Terminal terminal) {
     if (args.length == 0 || Set.of("help", "--help", "-h").contains(args[0])) {
       out.print(USAGE);
       return 0;
     }
     try {
       switch (args[0]) {
-        case "show" -> show(options(args, Set.of("agent", "layout", "cells", "loops", "target", "seed")), out);
+        case "show" -> show(options(args, Set.of("agent", "layout", "cells", "loops", "target", "seed", "color", "colour")),
+            out, terminal);
         case "benchmark" -> benchmark(options(args, Set.of("mazes", "seed", "sizes", "out")), out);
         case "render" -> render(options(args, Set.of("layout", "cells", "loops", "target", "seed", "out")), out);
         default -> throw new IllegalArgumentException("unknown command '" + args[0] + "'");
@@ -72,15 +75,18 @@ public final class Main {
     }
   }
 
-  private static void show(Map<String, String> options, PrintStream out) {
+  private static void show(Map<String, String> options, PrintStream out, Terminal terminal) {
     Agent agent = Agent.parse(options.getOrDefault("agent", Agent.MAP_PLANNER.id()));
     MazeSpec spec = spec(options, 10, 0);
     long seed = number(options, "seed", 1);
+    boolean colour = terminal.colour(ColourMode.parse(options.getOrDefault("color", options.getOrDefault("colour", "auto"))));
     Trial trial = Trial.run(spec.generate(seed), agent, seed);
     out.printf(Locale.ROOT, "%s on a %s %dx%d maze, %d%% loops, seed %d%n", agent.title(),
         spec.layout().id(), spec.cells(), spec.cells(), Math.round(spec.loops() * 100), seed);
     out.println(trial.summary());
-    out.print(AsciiRenderer.render(trial));
+    out.print(AsciiRenderer.legend(colour));
+    out.println();
+    out.print(AsciiRenderer.render(trial, colour));
   }
 
   private static void benchmark(Map<String, String> options, PrintStream out) throws IOException {

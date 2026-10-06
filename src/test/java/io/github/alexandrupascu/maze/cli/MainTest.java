@@ -1,6 +1,7 @@
 package io.github.alexandrupascu.maze.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -9,6 +10,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -34,12 +36,29 @@ class MainTest {
   }
 
   @Test
-  void showPrintsBothRunsOnTheMaze() {
+  void showPrintsBothRunsWithALegend() {
     assertEquals(0, run("show", "--agent", "coursework", "--cells", "6", "--seed", "4"));
     String text = output();
     assertTrue(text.startsWith("Coursework explorer (2022) on a prim 6x6 maze, 0% loops, seed 4"));
     assertTrue(text.contains("run 1: ") && text.contains("shortest: "));
-    assertTrue(text.contains("S") && text.contains("T") && text.contains("*"));
+    assertTrue(text.contains("## wall   .. visited on run 1   ** run 2 on a shortest route\n"));
+    assertTrue(text.contains("\n\n" + "#".repeat(26) + "\n##S "), "13 tiles, two characters each, start top-left");
+    assertTrue(text.contains("T ##\n" + "#".repeat(26) + "\n"), "target in the bottom-right cell");
+    assertFalse(text.contains("\u001b"), "no colour when output is not a terminal");
+  }
+
+  @Test
+  void colourFollowsTheFlagAndTheEnvironment() {
+    assertEquals(0, run(new Terminal(Map.of(), true, false), "show", "--cells", "5"));
+    assertTrue(output().contains("\u001b[38;5;244;48;5;244m##"), "auto colours a terminal");
+    assertEquals(0, run(new Terminal(Map.of("NO_COLOR", "1"), true, false), "show", "--cells", "5"));
+    assertFalse(output().contains("\u001b"));
+    assertEquals(0, run(new Terminal(Map.of("NO_COLOR", "1"), true, false), "show", "--cells", "5", "--color", "always"));
+    assertTrue(output().contains("\u001b["), "an explicit flag beats NO_COLOR");
+    assertEquals(0, run(new Terminal(Map.of(), true, false), "show", "--cells", "5", "--colour", "never"));
+    assertFalse(output().contains("\u001b"));
+    assertEquals(2, run("show", "--color", "sometimes"));
+    assertTrue(errors().contains("--color must be auto, always or never"));
   }
 
   @Test
@@ -60,10 +79,16 @@ class MainTest {
     assertTrue(output().contains("--mazes 2 --sizes 4"));
   }
 
+  // Tests never depend on the developer's terminal or environment variables.
   private int run(String... args) {
+    return run(new Terminal(Map.of(), false, false), args);
+  }
+
+  private int run(Terminal terminal, String... args) {
     out.reset();
     err.reset();
-    return Main.run(args, new PrintStream(out, true, StandardCharsets.UTF_8), new PrintStream(err, true, StandardCharsets.UTF_8));
+    return Main.run(args, new PrintStream(out, true, StandardCharsets.UTF_8),
+        new PrintStream(err, true, StandardCharsets.UTF_8), terminal);
   }
 
   private String output() {

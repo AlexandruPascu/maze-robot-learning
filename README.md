@@ -50,16 +50,34 @@ The [full results](reports/summary.md) also cover 7×7 and 30×30 mazes. They sh
 You need JDK 21 or newer. The Gradle wrapper downloads Gradle itself. On Windows, use `gradlew.bat`.
 
 ```sh
-./gradlew build                                        # compile and run the tests
-./gradlew run --args="show --agent coursework --seed 4" # one maze in the terminal
-./gradlew run --args="benchmark"                       # about 10 s; rewrites reports/
-./gradlew run --args="render"                          # rewrites docs/maze.svg
-./gradlew run --args="help"                            # every option
+./gradlew build                                                    # compile and run the tests
+./gradlew run --args="show --agent coursework --loops 0.25 --seed 4" # one maze in the terminal
+./gradlew run --args="benchmark"                                   # about 10 s; rewrites reports/
+./gradlew run --args="render"                                      # rewrites docs/maze.svg
+./gradlew run --args="help"                                        # every option
 ```
 
-`show` prints the maze with `.` for tiles visited on run 1 and `*` for the run-2 route. Options
-select the robot (`coursework`, `map-planner`, `a-star`), the layout (`prim`, `backtracker`), the size
-in cells, the share of loops, a corner or random target, and the seed.
+`show` draws the maze two characters per tile, so it looks square, under a legend. It compares the
+run-2 route with the shortest route that overlaps it most:
+
+| Mark | Meaning |
+| --- | --- |
+| `##` | Wall |
+| `..` | Visited on run 1 only |
+| `**` | Run 2 on a shortest route |
+| `~~` | Run 2 detour |
+| `++` | Shortest route that run 2 missed |
+| `S`, `T` | Start and target |
+
+Options select:
+
+- the robot: `coursework`, `map-planner` or `a-star`;
+- the layout: `prim` or `backtracker`;
+- the size in cells, the share of loops, a corner or random target, and the seed.
+
+The drawing is in colour when the output reaches a terminal, including through `./gradlew run`.
+Colour only restyles the same characters. `--color always` or `--color never` overrides the
+detection, and so does `NO_COLOR=1`; an explicit flag wins.
 
 ## The robots
 
@@ -113,13 +131,16 @@ heuristic saves.
 | `coursework/` | The 2022 files, byte for byte ([notes](coursework/README.md)) |
 | `reports/` | Benchmark results as CSV and Markdown |
 
-`./gradlew build` compiles with all warnings as errors and runs 38 JUnit tests. They cover:
+`./gradlew build` compiles with all warnings as errors and runs 49 JUnit tests. They cover:
 
 - **Mazes:** generator properties (spanning trees, loop counts, recorded seeds).
 - **Simulation:** the simulator's movement and sensing rules.
 - **Robots:** that the port matches the original code, every robot's guarantees on perfect and
   looped mazes, and the depth-first property above.
-- **Search:** that A\* and Dijkstra agree with breadth-first search.
+- **Search:** that A\* and Dijkstra agree with breadth-first search, and that the route used for
+  drawings is a shortest route overlapping run 2 as much as possible.
+- **Drawings:** the terminal marks, that colour changes nothing but styling, and when colour is used
+  (terminals, `./gradlew run`, `NO_COLOR`, `FORCE_COLOR`, Windows consoles).
 - **Reports and CLI:** report determinism, including under a non-English locale, and the command
   line.
 

@@ -22,6 +22,12 @@ application {
     applicationName = "maze-robot"
 }
 
+// `run` pipes the program's output through Gradle, hiding the terminal from it; this tells `show`
+// that colour will probably still reach one. NO_COLOR=1 or --color never turn it off.
+tasks.named<JavaExec>("run") {
+    environment("MAZE_ROBOT_VIA_GRADLE", "true")
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.release = 21
     options.encoding = "UTF-8"

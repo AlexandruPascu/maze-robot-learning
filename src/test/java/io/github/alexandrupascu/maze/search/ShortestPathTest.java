@@ -11,7 +11,9 @@ import io.github.alexandrupascu.maze.TestMazes;
 import io.github.alexandrupascu.maze.generate.Layout;
 import io.github.alexandrupascu.maze.generate.MazeSpec;
 import io.github.alexandrupascu.maze.generate.TargetPlacement;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class ShortestPathTest {
@@ -45,12 +47,35 @@ class ShortestPathTest {
   }
 
   @Test
+  void closestShortestRouteIsShortestAndFollowsThePreferredTilesBest() {
+    for (long seed = 0; seed < 40; seed++) {
+      Maze maze = new MazeSpec(Layout.PRIM, 10, 0.4, TargetPlacement.RANDOM).generate(seed);
+      List<Position> aStar = ShortestPath.aStar(maze, maze.start(), maze.target()).path();
+      assertEquals(aStar, ShortestPath.closestShortestRoute(maze, maze.start(), maze.target(), Set.copyOf(aStar)),
+          "a preferred shortest route is returned unchanged");
+
+      Set<Position> preferred = new HashSet<>();
+      for (int i = 0; i < maze.width() * maze.height(); i += 3) {
+        preferred.add(new Position(i % maze.width(), i / maze.width()));
+      }
+      List<Position> closest = ShortestPath.closestShortestRoute(maze, maze.start(), maze.target(), preferred);
+      assertEquals(aStar.size(), closest.size());
+      assertValidRoute(maze, closest);
+      assertTrue(overlap(closest, preferred) >= overlap(aStar, preferred));
+    }
+  }
+
+  @Test
   void unreachableTargetsAreReported() {
     Maze sealed = TestMazes.parse(
         "#####",
         "#S#T#",
         "#####");
     assertThrows(IllegalArgumentException.class, () -> ShortestPath.aStar(sealed, sealed.start(), sealed.target()));
+  }
+
+  private static long overlap(List<Position> route, Set<Position> tiles) {
+    return route.stream().filter(tiles::contains).count();
   }
 
   private static void assertValidRoute(Maze maze, List<Position> path) {

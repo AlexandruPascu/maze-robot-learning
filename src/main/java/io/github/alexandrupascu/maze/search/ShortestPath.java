@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 /** Shortest routes on a fully known maze, where every move costs one step. */
 public final class ShortestPath {
@@ -32,6 +33,76 @@ public final class ShortestPath {
   /** Dijkstra's algorithm: the same search without a heuristic. */
   public static Result dijkstra(Maze maze, Position from, Position to) {
     return search(maze, from, to, false);
+  }
+
+  /**
+   * The shortest route that shares the most tiles with {@code preferred}, so that drawings mark
+   * only where a longer route really strayed. When {@code preferred} contains a whole shortest
+   * route, that route is the one returned.
+   */
+  public static List<Position> closestShortestRoute(Maze maze, Position from, Position to, Set<Position> preferred) {
+    int width = maze.width();
+    Layers fromStart = breadthFirst(maze, from);
+    Layers toTarget = breadthFirst(maze, to);
+    int start = from.y() * width + from.x();
+    int goal = to.y() * width + to.x();
+    int length = fromStart.distance()[goal];
+    if (length < 0) {
+      throw new IllegalArgumentException("the target cannot be reached from " + from);
+    }
+    // Breadth-first order visits every tile after all tiles one step closer to the start, so each
+    // tile on a shortest route can take the best score among its predecessors.
+    int[] score = new int[fromStart.distance().length];
+    int[] parent = new int[score.length];
+    Arrays.fill(score, -1);
+    for (int i = 0; i < fromStart.count(); i++) {
+      int tile = fromStart.order()[i];
+      int distance = fromStart.distance()[tile];
+      if (toTarget.distance()[tile] < 0 || distance + toTarget.distance()[tile] != length) {
+        continue;
+      }
+      int x = tile % width;
+      int y = tile / width;
+      int best = tile == start ? 0 : -1;
+      parent[tile] = tile;
+      for (Heading heading : Heading.values()) {
+        int previous = (y + heading.dy()) * width + x + heading.dx();
+        if (maze.isOpen(x + heading.dx(), y + heading.dy())
+            && fromStart.distance()[previous] == distance - 1
+            && score[previous] > best) {
+          best = score[previous];
+          parent[tile] = previous;
+        }
+      }
+      score[tile] = best + (preferred.contains(new Position(x, y)) ? 1 : 0);
+    }
+    return path(parent, start, goal, width);
+  }
+
+  private record Layers(int[] distance, int[] order, int count) {}
+
+  private static Layers breadthFirst(Maze maze, Position source) {
+    int width = maze.width();
+    int[] distance = new int[width * maze.height()];
+    int[] order = new int[distance.length];
+    Arrays.fill(distance, -1);
+    int count = 0;
+    int first = source.y() * width + source.x();
+    distance[first] = 0;
+    order[count++] = first;
+    for (int head = 0; head < count; head++) {
+      int tile = order[head];
+      for (Heading heading : Heading.values()) {
+        int nx = tile % width + heading.dx();
+        int ny = tile / width + heading.dy();
+        int next = ny * width + nx;
+        if (maze.isOpen(nx, ny) && distance[next] < 0) {
+          distance[next] = distance[tile] + 1;
+          order[count++] = next;
+        }
+      }
+    }
+    return new Layers(distance, order, count);
   }
 
   private static Result search(Maze maze, Position from, Position to, boolean heuristic) {
