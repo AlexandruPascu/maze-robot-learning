@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.alexandrupascu.maze.learning.ExplorationPolicy;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -94,6 +95,16 @@ class MainTest {
     }
     assertTrue(Files.isRegularFile(chart));
     assertTrue(output().contains("--mazes 2 --runs 3 --cells 4"));
+  }
+
+  @Test
+  void trainWritesWeightsThatLoadBack(@TempDir Path directory) throws IOException {
+    Path model = directory.resolve("models").resolve("explorer.weights");
+    assertEquals(0, run("train", "--generations", "1", "--population", "4", "--elites", "1", "--mazes", "1",
+        "--cells", "4", "--model", model.toString(), "--out", directory.toString()));
+    ExplorationPolicy.parse(Files.readString(model));
+    assertTrue(Files.isRegularFile(directory.resolve("training.md")));
+    assertTrue(Files.readString(model).startsWith("# Trained by ./gradlew run --args=\"train --generations 1"));
   }
 
   @Test

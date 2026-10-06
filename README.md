@@ -3,10 +3,11 @@
 [![Build and test](https://github.com/AlexandruPascu/maze-robot-learning/actions/workflows/build.yml/badge.svg)](https://github.com/AlexandruPascu/maze-robot-learning/actions/workflows/build.yml)
 
 A robot explores a maze it has never seen, then runs it again using what it learned. This
-repository runs my 2022 university coursework robot alongside two planning robots, three learning
-robots and an A\* oracle on thousands of seeded mazes, and measures what each one gains from run to
-run. One planner proves which route is shortest before it finishes its first run, so every later
-run takes it. The simulator is self-contained Java 21 and deterministic on every platform.
+repository runs my 2022 university coursework robot alongside two planning robots, robots that learn
+from run to run or from maze to maze, and an A\* oracle on thousands of seeded mazes. It measures
+what each one gains. One planner proves which route is shortest before it finishes its first run,
+so every later run takes it, and a trained explorer finds the target faster on mazes it never saw.
+The simulator is self-contained Java 21 and deterministic on every platform.
 
 ![Three copies of the same 15x15-cell maze. The coursework robot's second run takes a long detour, the map planner's takes a longer way round, and the route prover's takes a shortest route.](docs/maze.svg)
 
@@ -86,7 +87,43 @@ The ranges run across the six maze types. They show:
 - **Here, planning beats learning.** The route prover walked the fewest steps over 30 runs on every
   maze type, tied with the map planner on backtracker mazes without loops. A planner is what
   model-based learning becomes when the model is the map itself and the target is known. Learning
-  should earn its place by carrying experience from one maze to the next, which is the next step.
+  has to earn its place by carrying experience from one maze to the next, as in the next section.
+
+## Learning across mazes
+
+The learned explorer carries experience from maze to maze. It repeatedly walks to the frontier cell
+with the lowest score, where a frontier cell is a reachable cell with walls it has not seen yet. The
+score weights six features of each frontier, and the cross-entropy method trains the weights:
+
+- **Training:** 25 generations of 40 sampled weight sets, refitted to the best 8 each time, on 300
+  mazes of 15×15 cells: 50 of each type, from a seed the benchmark never uses.
+- **Objective:** first-run steps relative to the same explorer using the map planner's freespace
+  rule, so every maze type counts equally ([training report](reports/training.md)).
+- **Test:** the benchmark's 5,400 mazes, including 7×7 and 30×30 mazes, a size it never trained on.
+
+| First run on 15×15 mazes, mean steps | Freespace rule | Learned | Change |
+| --- | ---: | ---: | ---: |
+| Prim, no loops | 302.7 | 266.5 | −12.0% |
+| Backtracker, no loops | 183.7 | 183.7 | 0.0% |
+| Prim, 10% loops | 187.6 | 167.2 | −10.9% |
+| Backtracker, 10% loops | 126.5 | 125.6 | −0.7% |
+| Prim, 25% loops | 118.7 | 108.4 | −8.7% |
+| Backtracker, 25% loops | 86.5 | 84.1 | −2.7% |
+
+Across all sizes ([full results](reports/summary.md#learning-across-mazes)):
+
+- **On Prim mazes the learned weights cut first runs by 3.0–13.7% at every size,** so what they
+  learned on 15×15 mazes carries over to 7×7 and 30×30 ones.
+- **Perfect backtracker mazes are unchanged.** Both rules already take a shortest route there.
+- **On backtracker mazes with loops the change is −2.7% to +1.0%:** small gains at 15×15 and 30×30,
+  small losses at 7×7.
+- **What it learned:**
+  - **Detours:** the weights on the optimistic distance to the target (2.03) and the straight-line
+    distance (−0.72) together penalise frontiers whose best possible route already bends around
+    known walls.
+  - **Preferences:** it also prefers openings that face the target and frontiers found recently.
+- **Training is reproducible:** `./gradlew run --args="train"` rebuilds `models/explorer.weights`
+  byte for byte. CI retrains on Linux, macOS and Windows and fails if the weights change.
 
 ## Quick start
 
@@ -95,7 +132,8 @@ You need JDK 21 or newer. The Gradle wrapper downloads Gradle itself. On Windows
 ```sh
 ./gradlew build                                                      # compile and run the tests
 ./gradlew run --args="show --agent route-prover --loops 0.25 --seed 4" # one maze in the terminal
-./gradlew run --args="benchmark"                                     # about 20 s; rewrites reports/
+./gradlew run --args="train"                                         # about 20 s; retrains the explorer
+./gradlew run --args="benchmark"                                     # about 30 s; rewrites reports/
 ./gradlew run --args="learn"                                         # about 15 s; learning curves and chart
 ./gradlew run --args="render"                                        # rewrites docs/maze.svg
 ./gradlew run --args="help"                                          # every option
@@ -117,7 +155,7 @@ most:
 Options select:
 
 - the robot: `coursework`, `map-planner`, `route-prover`, `a-star`, `q-learning`, `dyna-q` (50
-  replays) or `lrta-star`;
+  replays), `lrta-star`, `frontier-explorer` or `learned-explorer`;
 - how many runs to make, for example `--runs 20` to see what a learner does on its 20th run;
 - the layout: `prim` or `backtracker`;
 - the size in cells, the share of loops, a corner or random target, and the seed.
@@ -172,6 +210,14 @@ overshoot the true distance, and over repeated runs they converge on a shortest 
 
 Like every other robot, the learners see the walls next to them and never walk into one.
 
+**Frontier explorer and learned explorer.** Both know the maze is a grid of cells, like the route
+prover. On run 1 they walk through known passages to the frontier cell with the lowest score,
+inspect its walls, and choose again; later runs take the shortest known route.
+
+- **Frontier explorer:** scores each frontier by travel plus optimistic distance to the target,
+  which is the map planner's freespace rule.
+- **Learned explorer:** uses the six trained weights shipped in `models/explorer.weights`.
+
 **A\* oracle.** Is handed the full map and follows an A\* route using the Manhattan distance, which
 never overestimates on this grid. It sets the lower bound for the other robots. The benchmark also
 runs Dijkstra's algorithm, which is A\* without the heuristic, to measure how much work the
@@ -203,14 +249,15 @@ heuristic saves.
 | `…/sim/` | `MazeEnvironment`, `Robot`, `Runner`, `SearchWork` and the observation types |
 | `…/coursework/` | The ported 2022 controller, its adapter and the `IRobot` re-declaration |
 | `…/agents/` | `MapPlanner`, `RouteProver`, `AStarOracle` and the agent registry |
-| `…/learning/` | `QLearner` (Q-learning and Dyna-Q) and `LrtaStar` |
+| `…/learning/` | `QLearner` (Q-learning and Dyna-Q), `LrtaStar`, `FrontierExplorer`, `ExplorationPolicy`, `CrossEntropyMethod` |
 | `…/search/` | A\*, Dijkstra's algorithm and D\* Lite |
-| `…/bench/` | The two-run benchmark, the learning curves and their reports |
+| `…/bench/` | The two-run benchmark, the learning curves, the training report |
 | `…/render/`, `…/cli/` | SVG and text drawings, the learning chart, command line |
 | `coursework/` | The 2022 files, byte for byte ([notes](coursework/README.md)) |
-| `reports/` | Benchmark results and learning curves as CSV and Markdown |
+| `models/` | The trained exploration weights, shipped with the program |
+| `reports/` | Benchmark results, learning curves and training history as CSV and Markdown |
 
-`./gradlew build` compiles with all warnings as errors and runs 82 JUnit tests. They cover:
+`./gradlew build` compiles with all warnings as errors and runs 89 JUnit tests. They cover:
 
 - **Mazes:** generator properties (spanning trees, loop counts, recorded seeds).
 - **Simulation:** the simulator's movement and sensing rules.
@@ -224,7 +271,10 @@ heuristic saves.
   - that the learners never walk into a wall they have seen;
   - that Dyna-Q and Q-learning learn a shortest route, and that replay saves steps;
   - that LRTA\*'s estimates stay below the true distances and settle on a shortest route;
-  - that the learning curves are deterministic and the chart is well-formed.
+  - that the learning curves are deterministic and the chart is well-formed;
+  - that both exploration rules finish safely and then retrace a known shortest route;
+  - that training is deterministic, never uses benchmark mazes, and that the shipped weights are
+    trained ones.
 - **Search:**
   - that A\* and Dijkstra agree with breadth-first search;
   - that D\* Lite agrees with a fresh breadth-first search after every wall it learns and wherever
@@ -250,9 +300,11 @@ route replay, and the measurements above replace that description.
 
 ## Next
 
-Every robot here, learners included, starts each maze from nothing. The next step is learning across
-mazes: an exploration policy trained with the cross-entropy method on one set of maze seeds and
-tested on seeds it never saw. It aims for shorter first runs than the map planner.
+- **The proof:** the route prover's proof costs extra exploration on mazes with loops. Learning
+  which walls to inspect first, the same way the explorer learned where to look, could make it
+  cheaper.
+- **Backtracker mazes:** the learned explorer loses up to 1% on small backtracker mazes with loops.
+  Features that tell the maze types apart, or a policy per type, are the obvious next try.
 
 ## Licence
 

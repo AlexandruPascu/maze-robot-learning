@@ -1,0 +1,7 @@
+# Trained by ./gradlew run --args="train"; see reports/training.md
+travel 1.000000
+remaining 2.027851
+manhattan -0.717179
+unknown-walls 0.068142
+age 0.139372
+towards-target -0.295005

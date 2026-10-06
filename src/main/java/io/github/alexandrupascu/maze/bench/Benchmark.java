@@ -28,7 +28,8 @@ public final class Benchmark {
   public static final List<Double> LOOPS = List.of(0.0, 0.10, 0.25);
   public static final List<Integer> DEFAULT_SIZES = List.of(7, 15, 30);
   /** The robots designed around two runs; the learners are measured over many runs in LearningCurves. */
-  public static final List<Agent> AGENTS = List.of(Agent.COURSEWORK, Agent.MAP_PLANNER, Agent.ROUTE_PROVER, Agent.A_STAR);
+  public static final List<Agent> AGENTS = List.of(Agent.COURSEWORK, Agent.MAP_PLANNER, Agent.ROUTE_PROVER, Agent.A_STAR,
+      Agent.FRONTIER_EXPLORER, Agent.LEARNED_EXPLORER);
 
   private Benchmark() {}
 

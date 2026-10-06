@@ -39,15 +39,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Build and test
         run: ./gradlew build --console=plain
-      - name: Regenerate the reports, learning curves and README images
+      - name: Retrain the explorer, then regenerate the reports, learning curves and README images
         run: |
+          ./gradlew run --args="train" --console=plain
           ./gradlew run --args="benchmark" --console=plain
           ./gradlew run --args="learn" --console=plain
           ./gradlew run --args="render" --console=plain
       # Byte for byte, so a line-ending change fails too; git diff alone would normalise it away.
       - name: Fail if any generated file differs from the committed bytes
         run: |
-          test -z "$(git status --porcelain -- reports docs)" || { git status --short -- reports docs; exit 1; }
-          git ls-files -- reports docs | while read -r file; do
+          test -z "$(git status --porcelain -- models reports docs)" || { git status --short -- models reports docs; exit 1; }
+          git ls-files -- models reports docs | while read -r file; do
             git show "HEAD:$file" | cmp -s - "$file" || { echo "::error::$file differs from the committed bytes"; exit 1; }
           done

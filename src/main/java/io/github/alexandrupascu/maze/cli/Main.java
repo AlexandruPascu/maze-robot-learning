@@ -5,10 +5,12 @@ import io.github.alexandrupascu.maze.agents.Agent;
 import io.github.alexandrupascu.maze.bench.Benchmark;
 import io.github.alexandrupascu.maze.bench.LearningCurves;
 import io.github.alexandrupascu.maze.bench.LearningReport;
+import io.github.alexandrupascu.maze.bench.TrainingReport;
 import io.github.alexandrupascu.maze.bench.ReportWriter;
 import io.github.alexandrupascu.maze.generate.Layout;
 import io.github.alexandrupascu.maze.generate.MazeSpec;
 import io.github.alexandrupascu.maze.generate.TargetPlacement;
+import io.github.alexandrupascu.maze.learning.CrossEntropyMethod;
 import io.github.alexandrupascu.maze.render.AsciiRenderer;
 import io.github.alexandrupascu.maze.render.LearningChart;
 import io.github.alexandrupascu.maze.render.SvgRenderer;
@@ -43,6 +45,10 @@ public final class Main {
         learn       Run every learner many times on each maze; write learning curves and a chart
                       --mazes N (100)  --runs N (30)  --cells N (15)  --seed S (2022)
                       --out DIR (reports)  --chart FILE (docs/learning.svg)
+        train       Train the learned explorer's weights with the cross-entropy method
+                      --generations N (25)  --population N (40)  --elites N (8)
+                      --mazes N per maze type (50)  --cells N (15)  --seed S (77)
+                      --model FILE (models/explorer.weights)  --out DIR (reports)
         render      Draw the coursework robot, map planner and route prover on one maze as SVG
                       --layout prim|backtracker (prim)  --cells N (15)  --loops F (0.1)
                       --target corner|random (corner)  --seed S (1)  --out FILE (docs/maze.svg)
@@ -72,6 +78,8 @@ public final class Main {
             out, terminal);
         case "benchmark" -> benchmark(options(args, Set.of("mazes", "seed", "sizes", "out")), out);
         case "learn" -> learn(options(args, Set.of("mazes", "runs", "cells", "seed", "out", "chart")), out);
+        case "train" -> train(options(args, Set.of("generations", "population", "elites", "mazes", "cells", "seed",
+            "model", "out")), out);
         case "render" -> render(options(args, Set.of("layout", "cells", "loops", "target", "seed", "out")), out);
         default -> throw new IllegalArgumentException("unknown command '" + args[0] + "'");
       }
@@ -135,6 +143,22 @@ public final class Main {
     printLines(out, LearningReport.markdown(result));
     out.println();
     out.println("Wrote learning.csv, learning-summary.csv and learning.md to " + directory + ", and " + chart);
+  }
+
+  private static void train(Map<String, String> options, PrintStream out) throws IOException {
+    CrossEntropyMethod.Settings defaults = CrossEntropyMethod.Settings.defaults();
+    CrossEntropyMethod.Settings settings = new CrossEntropyMethod.Settings(
+        whole(options, "generations", defaults.generations()),
+        whole(options, "population", defaults.population()), whole(options, "elites", defaults.elites()),
+        whole(options, "mazes", defaults.mazesPerType()), whole(options, "cells", defaults.cells()),
+        number(options, "seed", defaults.seed()));
+    CrossEntropyMethod.Result result = CrossEntropyMethod.train(settings);
+    Path model = Path.of(options.getOrDefault("model", "models/explorer.weights"));
+    Path directory = Path.of(options.getOrDefault("out", "reports"));
+    TrainingReport.write(result, directory, model);
+    out.printf(Locale.ROOT, "Training cost %.4f (the freespace rule costs 1). Weights: %s%n", result.cost(),
+        result.policy());
+    out.println("Wrote " + model + ", and training.csv and training.md to " + directory);
   }
 
   private static void render(Map<String, String> options, PrintStream out) throws IOException {

@@ -11,6 +11,15 @@ repositories {
     mavenCentral()
 }
 
+// The trained exploration weights ship with the program as a class-path resource.
+sourceSets {
+    main {
+        resources {
+            srcDir("models")
+        }
+    }
+}
+
 dependencies {
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")

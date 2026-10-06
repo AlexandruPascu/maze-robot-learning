@@ -2,6 +2,8 @@ package io.github.alexandrupascu.maze.agents;
 
 import io.github.alexandrupascu.maze.Maze;
 import io.github.alexandrupascu.maze.coursework.CourseworkRobot;
+import io.github.alexandrupascu.maze.learning.ExplorationPolicy;
+import io.github.alexandrupascu.maze.learning.FrontierExplorer;
 import io.github.alexandrupascu.maze.learning.LrtaStar;
 import io.github.alexandrupascu.maze.learning.QLearner;
 import io.github.alexandrupascu.maze.sim.Robot;
@@ -14,7 +16,9 @@ public enum Agent {
   A_STAR("a-star", "A* oracle"),
   Q_LEARNING("q-learning", "Q-learning"),
   DYNA_Q("dyna-q", "Dyna-Q"),
-  LRTA_STAR("lrta-star", "LRTA*");
+  LRTA_STAR("lrta-star", "LRTA*"),
+  FRONTIER_EXPLORER("frontier-explorer", "Frontier explorer"),
+  LEARNED_EXPLORER("learned-explorer", "Learned explorer");
 
   /** Replayed moves per real step for Dyna-Q, as in Sutton and Barto's maze experiments. */
   public static final int DYNA_PLANNING_STEPS = 50;
@@ -45,6 +49,8 @@ public enum Agent {
       case Q_LEARNING -> QLearner.qLearning();
       case DYNA_Q -> QLearner.dynaQ(DYNA_PLANNING_STEPS);
       case LRTA_STAR -> new LrtaStar();
+      case FRONTIER_EXPLORER -> new FrontierExplorer(ExplorationPolicy.freespace());
+      case LEARNED_EXPLORER -> new FrontierExplorer(ExplorationPolicy.learned());
     };
   }
 
@@ -55,6 +61,7 @@ public enum Agent {
       }
     }
     throw new IllegalArgumentException("unknown agent '" + id
-        + "' (use coursework, map-planner, route-prover, a-star, q-learning, dyna-q or lrta-star)");
+        + "' (use coursework, map-planner, route-prover, a-star, q-learning, dyna-q, lrta-star, "
+        + "frontier-explorer or learned-explorer)");
   }
 }
