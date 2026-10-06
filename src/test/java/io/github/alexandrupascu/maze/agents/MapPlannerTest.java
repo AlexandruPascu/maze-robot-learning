@@ -67,6 +67,26 @@ class MapPlannerTest {
     assertEquals(twoRuns(new MapPlanner(), second), twoRuns(reused, second));
   }
 
+  // Both planners break ties in the same N, E, S, W order, so D* Lite changes only the search work.
+  @Test
+  void incrementalPlanningMakesTheSameMovesWithLessSearch() {
+    long incrementalWork = 0;
+    long scratchWork = 0;
+    for (Layout layout : Layout.values()) {
+      for (double loops : new double[] {0, 0.1, 0.25}) {
+        for (long seed = 0; seed < 10; seed++) {
+          Maze maze = new MazeSpec(layout, 12, loops, TargetPlacement.RANDOM).generate(seed);
+          MapPlanner incremental = new MapPlanner();
+          MapPlanner scratch = MapPlanner.replanningFromScratch();
+          assertEquals(twoRuns(scratch, maze), twoRuns(incremental, maze), layout.id() + " loops " + loops + " seed " + seed);
+          incrementalWork += incremental.expansions();
+          scratchWork += scratch.expansions();
+        }
+      }
+    }
+    assertTrue(incrementalWork * 3 < scratchWork, "D* Lite " + incrementalWork + " vs from scratch " + scratchWork);
+  }
+
   @Test
   void oracleFollowsTheShortestRouteOnEveryRun() {
     for (long seed = 0; seed < 20; seed++) {
