@@ -36,6 +36,12 @@ class MainTest {
   }
 
   @Test
+  void numbersTooLargeForTheirOptionAreRejected() {
+    assertEquals(2, run("show", "--cells", "4294967302"));
+    assertTrue(errors().contains("--cells is too large"));
+  }
+
+  @Test
   void showPrintsBothRunsWithALegend() {
     assertEquals(0, run("show", "--agent", "coursework", "--cells", "6", "--seed", "4"));
     String text = output();

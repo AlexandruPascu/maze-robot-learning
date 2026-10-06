@@ -99,7 +99,7 @@ public final class Main {
       }
     }
     Benchmark.Settings settings = new Benchmark.Settings(
-        (int) number(options, "mazes", defaults.mazes()), number(options, "seed", defaults.seed()), sizes);
+        whole(options, "mazes", defaults.mazes()), number(options, "seed", defaults.seed()), sizes);
     Benchmark.Report report = Benchmark.run(settings);
     Path directory = Path.of(options.getOrDefault("out", "reports"));
     ReportWriter.write(report, directory);
@@ -145,7 +145,7 @@ public final class Main {
   private static MazeSpec spec(Map<String, String> options, int cells, double loops) {
     return new MazeSpec(
         Layout.parse(options.getOrDefault("layout", Layout.PRIM.id())),
-        (int) number(options, "cells", cells),
+        whole(options, "cells", cells),
         options.containsKey("loops") ? fraction(options.get("loops")) : loops,
         TargetPlacement.parse(options.getOrDefault("target", TargetPlacement.CORNER.id())));
   }
@@ -175,6 +175,15 @@ public final class Main {
     } catch (NumberFormatException error) {
       throw new IllegalArgumentException("--" + key + " must be a whole number, not '" + value + "'");
     }
+  }
+
+  // Options that must fit an int: checked rather than silently truncated.
+  private static int whole(Map<String, String> options, String key, int fallback) {
+    long value = number(options, key, fallback);
+    if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("--" + key + " is too large: " + value);
+    }
+    return (int) value;
   }
 
   private static int integer(String key, String value) {
