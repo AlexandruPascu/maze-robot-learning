@@ -42,8 +42,8 @@ public final class Observation {
   }
 
   /** The adjacent tile in an absolute heading. */
-  public Sight sight(Heading direction) {
-    return around[direction.ordinal()];
+  public Sight sight(Heading side) {
+    return around[side.ordinal()];
   }
 
   /** The adjacent tile in a direction relative to the robot's heading. */

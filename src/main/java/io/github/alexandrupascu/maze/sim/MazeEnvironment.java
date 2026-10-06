@@ -75,9 +75,9 @@ public final class MazeEnvironment {
 
   public Observation observe() {
     Sight[] around = new Sight[4];
-    for (Heading direction : HEADINGS) {
-      Position next = position.step(direction);
-      around[direction.ordinal()] =
+    for (Heading side : HEADINGS) {
+      Position next = position.step(side);
+      around[side.ordinal()] =
           !maze.isOpen(next) ? Sight.WALL : visited[index(next)] ? Sight.BEEN_BEFORE : Sight.PASSAGE;
     }
     return new Observation(position, heading, maze.target(), run, around);
