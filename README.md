@@ -180,7 +180,7 @@ characters. `NO_COLOR=1` turns it off and `FORCE_COLOR=1` turns it on; `--color 
 
 ## The robots
 
-**Coursework explorer (2022).** My original CS118 solution, run unchanged apart from an injectable
+**Coursework explorer (2022).** My original coursework solution, run unchanged apart from an injectable
 random source. On run 1 it explores at random, depth first. It prefers exits it has not visited,
 backtracks from dead ends, and keeps a stack of the cells on its current route with the heading it
 arrived in. On run 2 it replays that stack.
@@ -303,10 +303,9 @@ heuristic saves.
 
 ## Background and credit
 
-This project began as robot-maze coursework for CS118 at the University of Warwick, uploaded in
-2022. The originals are in [coursework/](coursework/), unchanged, with notes on what each file is.
-They were written against the department's maze framework, which belongs to the university and is
-not included. The simulator here is an independent implementation of what the robot needs: four-way
+This project began as university robot-maze coursework, uploaded in 2022. The originals are in
+[coursework/](coursework/), unchanged, with notes on what each file is. They were written against
+the course's maze framework, which belongs to the university and is not included. The simulator here is an independent implementation of what the robot needs: four-way
 sensing, been-before marks and repeated runs.
 
 The 2022 description presented the robot as a mix of Dijkstra's, Trémaux's and A\* algorithms

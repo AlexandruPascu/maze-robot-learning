@@ -1,8 +1,8 @@
 # Coursework originals (2022)
 
-These five files are my robot-maze coursework for CS118 at the University of Warwick, exactly as
-uploaded in 2022, CRLF line endings included. They compile only against the department's maze
-framework, which belongs to the university and is not part of this repository.
+These five files are my university robot-maze coursework, exactly as uploaded in 2022, CRLF line
+endings included. They compile only against the course's maze framework, which belongs to the
+university and is not part of this repository.
 
 | File | What it is |
 | --- | --- |
