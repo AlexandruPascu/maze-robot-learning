@@ -15,7 +15,7 @@ import java.util.Locale;
  * <ul>
  *   <li>{@code travel}: cells to walk there through known passages;
  *   <li>{@code remaining}: cells from there to the target, assuming unknown walls are open;
- *   <li>{@code manhattan}: straight-line cells from there to the target;
+ *   <li>{@code manhattan}: the Manhattan distance in cells from there to the target, ignoring walls;
  *   <li>{@code unknown-walls}: how many of its walls are still unknown;
  *   <li>{@code age}: decisions since it first became a frontier;
  *   <li>{@code towards-target}: how many of its unknown walls face the target.
@@ -27,8 +27,10 @@ import java.util.Locale;
 public final class ExplorationPolicy {
   public static final List<String> FEATURES =
       List.of("travel", "remaining", "manhattan", "unknown-walls", "age", "towards-target");
-  /** Where the trained weights live on the class path, and under models/ in the repository. */
-  public static final String RESOURCE = "explorer.weights";
+  /** The trained weights, next to this class on the class path and under models/ in the repository. */
+  private static final String RESOURCE = "explorer.weights";
+  /** Far beyond any trained weight, and small enough that no score can overflow. */
+  private static final double MAX_WEIGHT = 1e6;
 
   private final double[] weights;
 
@@ -40,8 +42,8 @@ public final class ExplorationPolicy {
       throw new IllegalArgumentException("the travel weight must be 1");
     }
     for (double weight : weights) {
-      if (!Double.isFinite(weight)) {
-        throw new IllegalArgumentException("weights must be finite numbers");
+      if (!(Math.abs(weight) <= MAX_WEIGHT)) {
+        throw new IllegalArgumentException("weights must be numbers between -1e6 and 1e6");
       }
     }
     this.weights = weights.clone();
@@ -58,11 +60,13 @@ public final class ExplorationPolicy {
 
   /** The weights trained by {@code ./gradlew run --args="train"}, shipped with the program. */
   public static ExplorationPolicy learned() {
-    try (InputStream in = ExplorationPolicy.class.getClassLoader().getResourceAsStream(RESOURCE)) {
+    try (InputStream in = ExplorationPolicy.class.getResourceAsStream(RESOURCE)) {
       if (in == null) {
-        throw new IllegalStateException(RESOURCE + " is missing from the class path");
+        throw new IllegalStateException("the bundled " + RESOURCE + " is missing; rebuild the program");
       }
       return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+    } catch (IllegalArgumentException error) {
+      throw new IllegalStateException("the bundled " + RESOURCE + " is corrupt: " + error.getMessage(), error);
     } catch (IOException error) {
       throw new UncheckedIOException(error);
     }

@@ -3,6 +3,7 @@ package io.github.alexandrupascu.maze.render;
 import io.github.alexandrupascu.maze.Maze;
 import io.github.alexandrupascu.maze.Position;
 import io.github.alexandrupascu.maze.agents.Agent;
+import io.github.alexandrupascu.maze.bench.LearningCurves;
 import io.github.alexandrupascu.maze.bench.Seeds;
 import io.github.alexandrupascu.maze.search.ShortestPath;
 import io.github.alexandrupascu.maze.sim.MazeEnvironment;
@@ -25,8 +26,8 @@ public record Trial(Agent agent, Maze maze, RunResult first, RunResult last, Lis
 
   /** Runs {@code agent} {@code runs} times on {@code maze}, keeping the first and last runs. */
   public static Trial run(Maze maze, Agent agent, long mazeSeed, int runs) {
-    if (runs < 2) {
-      throw new IllegalArgumentException("a trial needs at least two runs");
+    if (runs < 2 || runs > LearningCurves.MAX_RUNS) {
+      throw new IllegalArgumentException("a trial needs 2 to " + LearningCurves.MAX_RUNS + " runs");
     }
     MazeEnvironment environment = new MazeEnvironment(maze);
     Robot robot = agent.create(maze);

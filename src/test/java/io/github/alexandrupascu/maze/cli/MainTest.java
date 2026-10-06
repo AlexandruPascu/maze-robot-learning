@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.alexandrupascu.maze.agents.Agent;
 import io.github.alexandrupascu.maze.learning.ExplorationPolicy;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -40,6 +41,21 @@ class MainTest {
   void numbersTooLargeForTheirOptionAreRejected() {
     assertEquals(2, run("show", "--cells", "4294967302"));
     assertTrue(errors().contains("--cells is too large"));
+  }
+
+  @Test
+  void optionsThatWouldExhaustMemoryAreRejected() {
+    assertEquals(2, run("learn", "--runs", "2147483647"));
+    assertEquals(2, run("show", "--runs", "1001"));
+    assertEquals(2, run("train", "--population", "2000000000"));
+    assertTrue(errors().contains("at most"));
+  }
+
+  @Test
+  void helpNamesEveryRobot() {
+    for (Agent agent : Agent.values()) {
+      assertTrue(Main.USAGE.contains(agent.id()), agent.id());
+    }
   }
 
   @Test

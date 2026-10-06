@@ -8,7 +8,7 @@ import io.github.alexandrupascu.maze.learning.LrtaStar;
 import io.github.alexandrupascu.maze.learning.QLearner;
 import io.github.alexandrupascu.maze.sim.Robot;
 
-/** The robots available to the command line, the benchmark and the learning curves. */
+/** The robots available to the command line and the benchmark; the learning curves list their own. */
 public enum Agent {
   COURSEWORK("coursework", "Coursework explorer (2022)"),
   MAP_PLANNER("map-planner", "Map planner"),

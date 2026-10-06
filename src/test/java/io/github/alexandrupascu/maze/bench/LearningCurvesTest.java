@@ -43,7 +43,7 @@ class LearningCurvesTest {
   void theRouteProverConvergesByItsSecondRunEverywhere() {
     for (FamilyResult family : LearningCurves.run(SMALL).families()) {
       Curve prover = family.curves().get(Learner.ROUTE_PROVER.ordinal());
-      assertEquals(SMALL.mazes(), prover.converged());
+      assertEquals(SMALL.mazes(), prover.settled());
       assertTrue(prover.shortestFromRun() >= 1 && prover.shortestFromRun() <= 2);
       assertEquals(family.shortest(), prover.meanSteps().get(1), 1e-9);
     }

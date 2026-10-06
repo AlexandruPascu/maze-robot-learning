@@ -29,7 +29,8 @@ public final class QLearner implements Robot {
 
   private final int planningSteps;
   private int width;
-  private int target;
+  // Unknown until the robot first arrives there.
+  private int target = -1;
   private int[] value = new int[0];
   private int[] leadsTo = new int[0];
   private boolean[] wall = new boolean[0];
@@ -58,7 +59,7 @@ public final class QLearner implements Robot {
   @Override
   public void beginMaze(MazeInfo info) {
     width = info.width();
-    target = index(info.target());
+    target = -1;
     int moves = width * info.height() * 4;
     value = new int[moves];
     leadsTo = new int[moves];
@@ -100,6 +101,9 @@ public final class QLearner implements Robot {
   public void afterStep(StepResult result) {
     int next = index(result.observation().position());
     see(next, result.observation());
+    if (result.reachedTarget()) {
+      target = next;
+    }
     if (leadsTo[lastMove] < 0) {
       leadsTo[lastMove] = next;
       experience[experienced++] = lastMove;

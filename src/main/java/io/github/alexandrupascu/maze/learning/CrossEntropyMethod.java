@@ -15,9 +15,9 @@ import java.util.stream.IntStream;
 
 /**
  * Trains an {@link ExplorationPolicy} with the cross-entropy method: sample weight vectors from a
- * Gaussian, keep the cheapest, refit the Gaussian to them, and repeat. A policy's cost is its mean
- * first-run steps on the training mazes relative to the freespace rule on the same mazes, so every
- * maze type counts equally whatever its size, and the freespace rule costs exactly 1.
+ * Gaussian, keep the cheapest, refit the Gaussian to them, and repeat. A policy's cost is the mean,
+ * over the training mazes, of its first-run steps divided by the freespace rule's on the same maze,
+ * so every maze counts equally whatever its length, and the freespace rule costs exactly 1.
  *
  * <p>The training mazes come from their own seed, never from the benchmark's. Evaluation runs in
  * parallel but sums costs in a fixed order, so training gives the same weights on every machine.
@@ -27,6 +27,10 @@ public final class CrossEntropyMethod {
   public static final long TRAINING_SEED = 77;
   private static final double[] LOOPS = {0, 0.1, 0.25};
   private static final double MIN_SPREAD = 0.02;
+  /** Limits that keep a mistyped option from exhausting memory: each generation holds every sample. */
+  public static final int MAX_GENERATIONS = 1000;
+  public static final int MAX_POPULATION = 1000;
+  public static final int MAX_MAZES_PER_TYPE = 1000;
 
   private CrossEntropyMethod() {}
 
@@ -34,6 +38,10 @@ public final class CrossEntropyMethod {
     public Settings {
       if (generations < 1 || elites < 1 || population <= elites || mazesPerType < 1) {
         throw new IllegalArgumentException("need generations >= 1, mazes >= 1 and population > elites >= 1");
+      }
+      if (generations > MAX_GENERATIONS || population > MAX_POPULATION || mazesPerType > MAX_MAZES_PER_TYPE) {
+        throw new IllegalArgumentException("training allows at most " + MAX_GENERATIONS + " generations, a population of "
+            + MAX_POPULATION + " and " + MAX_MAZES_PER_TYPE + " mazes per type");
       }
     }
 
@@ -82,7 +90,7 @@ public final class CrossEntropyMethod {
           double deviation = samples[order[e]][d] - mean[d];
           variance += deviation * deviation;
         }
-        // A floor on the spread keeps the search from collapsing onto one point too early.
+        // A small constant added to the spread keeps the search from collapsing onto one point too early.
         spread[d] = Math.sqrt(variance / settings.elites()) + MIN_SPREAD;
       }
       double meanCost = 0;
@@ -123,7 +131,7 @@ public final class CrossEntropyMethod {
     return IntStream.range(0, mazes.size()).parallel().mapToLong(i -> firstRun(policy, mazes.get(i))).toArray();
   }
 
-  public static int firstRun(ExplorationPolicy policy, Maze maze) {
+  private static int firstRun(ExplorationPolicy policy, Maze maze) {
     MazeEnvironment environment = new MazeEnvironment(maze);
     Robot robot = new FrontierExplorer(policy);
     robot.beginMaze(environment.info(0));

@@ -27,7 +27,10 @@ public final class Benchmark {
   public static final List<Layout> LAYOUTS = List.of(Layout.PRIM, Layout.BACKTRACKER);
   public static final List<Double> LOOPS = List.of(0.0, 0.10, 0.25);
   public static final List<Integer> DEFAULT_SIZES = List.of(7, 15, 30);
-  /** The robots designed around two runs; the learners are measured over many runs in LearningCurves. */
+  /**
+   * The robots compared over two runs, including both exploration rules. The robots that learn from run
+   * to run are measured over many runs in LearningCurves, alongside the two planners.
+   */
   public static final List<Agent> AGENTS = List.of(Agent.COURSEWORK, Agent.MAP_PLANNER, Agent.ROUTE_PROVER, Agent.A_STAR,
       Agent.FRONTIER_EXPLORER, Agent.LEARNED_EXPLORER);
 
@@ -92,7 +95,14 @@ public final class Benchmark {
       double incrementalExpanded,
       int sameMoves) {}
 
-  public record Report(Settings settings, List<AgentSummary> agents, List<SearchSummary> searches) {}
+  /**
+   * The learned explorer's first runs against the same explorer with the freespace rule, maze by maze:
+   * the mean of the per-maze step ratios (what training minimises) and how many mazes got better or worse.
+   */
+  public record ExplorationSummary(Config config, int mazes, double meanRatio, int better, int worse) {}
+
+  public record Report(Settings settings, List<AgentSummary> agents, List<SearchSummary> searches,
+      List<ExplorationSummary> explorations) {}
 
   public static List<Config> configs(Settings settings) {
     List<Config> configs = new ArrayList<>();
@@ -109,6 +119,7 @@ public final class Benchmark {
   public static Report run(Settings settings) {
     List<AgentSummary> agents = new ArrayList<>();
     List<SearchSummary> searches = new ArrayList<>();
+    List<ExplorationSummary> explorations = new ArrayList<>();
     for (Config config : configs(settings)) {
       List<Tally> tallies = new ArrayList<>();
       for (Agent agent : AGENTS) {
@@ -145,13 +156,36 @@ public final class Benchmark {
         }
       }
       int mazes = settings.mazes();
+      Tally freespace = null;
+      Tally learned = null;
       for (Tally tally : tallies) {
         agents.add(tally.summary(config));
+        if (tally.agent == Agent.FRONTIER_EXPLORER) {
+          freespace = tally;
+        } else if (tally.agent == Agent.LEARNED_EXPLORER) {
+          learned = tally;
+        }
       }
+      explorations.add(compare(config, freespace, learned));
       searches.add(new SearchSummary(config, mazes, openTiles / mazes, dijkstraExpanded / mazes, aStarExpanded / mazes,
           scratchSteps / mazes, scratchExpanded / mazes, incrementalSteps / mazes, incrementalExpanded / mazes, sameMoves));
     }
-    return new Report(settings, List.copyOf(agents), List.copyOf(searches));
+    return new Report(settings, List.copyOf(agents), List.copyOf(searches), List.copyOf(explorations));
+  }
+
+  private static ExplorationSummary compare(Config config, Tally freespace, Tally learned) {
+    double ratios = 0;
+    int better = 0;
+    int worse = 0;
+    for (int i = 0; i < freespace.firstRuns.size(); i++) {
+      int before = freespace.firstRuns.get(i);
+      int after = learned.firstRuns.get(i);
+      ratios += (double) after / before;
+      better += after < before ? 1 : 0;
+      worse += after > before ? 1 : 0;
+    }
+    int mazes = freespace.firstRuns.size();
+    return new ExplorationSummary(config, mazes, ratios / mazes, better, worse);
   }
 
   private static RunResult firstRun(Maze maze, MapPlanner planner) {
@@ -163,6 +197,7 @@ public final class Benchmark {
   private static final class Tally {
     private final Agent agent;
     private final List<Double> speedups = new ArrayList<>();
+    private final List<Integer> firstRuns = new ArrayList<>();
     private long run1;
     private long run2;
     private long shortest;
@@ -184,6 +219,7 @@ public final class Benchmark {
       int limit = Runner.defaultStepLimit(environment);
       RunResult first = Runner.run(environment, robot, limit, false);
       long firstRunWork = robot instanceof SearchWork planner ? planner.expansions() : 0;
+      firstRuns.add(first.steps());
       RunResult second = first.reachedTarget() ? Runner.run(environment, robot, limit, false) : null;
       collisions += first.collisions() + (second == null ? 0 : second.collisions());
       if (second == null || !second.reachedTarget()) {

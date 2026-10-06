@@ -41,13 +41,14 @@ public final class LearningReport {
   public static String summaryCsv(Result result) {
     Settings settings = result.settings();
     StringBuilder out = new StringBuilder(
-        "layout,loops,cells,robot,mazes,runs,converged_share,shortest_from_run_mean,total_steps_mean\n");
+        "layout,loops,cells,robot,mazes,runs,settled_share,shortest_from_run_mean,total_steps_mean,unfinished_runs,collisions\n");
     for (FamilyResult family : result.families()) {
       for (Curve curve : family.curves()) {
-        out.append(format("%s,%.2f,%d,%s,%d,%d,%.4f,%s,%.1f%n", family.family().layout().id(), family.family().loops(),
-            settings.cells(), curve.learner().id(), settings.mazes(), settings.runs(),
-            (double) curve.converged() / settings.mazes(),
-            curve.converged() == 0 ? "" : format("%.2f", curve.shortestFromRun()), curve.totalSteps()));
+        out.append(format("%s,%.2f,%d,%s,%d,%d,%.4f,%s,%.1f,%d,%d%n", family.family().layout().id(),
+            family.family().loops(), settings.cells(), curve.learner().id(), settings.mazes(), settings.runs(),
+            (double) curve.settled() / settings.mazes(),
+            curve.settled() == 0 ? "" : format("%.2f", curve.shortestFromRun()), curve.totalSteps(),
+            curve.unfinishedRuns(), curve.collisions()));
       }
     }
     return out.toString();
@@ -63,9 +64,21 @@ public final class LearningReport {
             + "between runs. Steps are means over the mazes.%n%n",
         arguments(settings), settings.mazes(), settings.cells(), settings.cells(), settings.seed(), settings.mazes(),
         settings.runs()));
-    out.append(format("\"Shortest from run\" is the run from which every remaining run was a shortest route, "
-        + "averaged over the mazes where that happened within %d runs. \"Converged\" is the share of those mazes. "
-        + "\"Total\" is the mean number of steps over all %d runs.%n", settings.runs(), settings.runs()));
+    int window = LearningCurves.settleWindow(settings.runs());
+    out.append(format("A maze counts as \"settled\" when its last %d runs were all shortest routes; a single shortest "
+        + "run is not enough, because a learner can find a shortest route by chance and stray again. \"Settled\" is "
+        + "the share of mazes that settled, and \"shortest from run\" is where their final streak of shortest routes "
+        + "began, averaged over those mazes. \"Total\" is the mean over mazes of the steps of all %d runs added "
+        + "together.%n%n", window, settings.runs()));
+    long unfinished = 0;
+    long collisions = 0;
+    for (FamilyResult family : result.families()) {
+      for (Curve curve : family.curves()) {
+        unfinished += curve.unfinishedRuns();
+        collisions += curve.collisions();
+      }
+    }
+    out.append(format("Across every robot and maze: %d unfinished runs, %d wall collisions.%n", unfinished, collisions));
     for (FamilyResult family : result.families()) {
       out.append(format("%n## %s (shortest route %.1f steps)%n%n", family.family().label(settings.cells()),
           family.shortest()));
@@ -73,15 +86,15 @@ public final class LearningReport {
       for (int run : shown) {
         out.append(" Run ").append(run).append(" |");
       }
-      out.append(" Shortest from run | Converged | Total |\n|---|");
+      out.append(" Shortest from run | Settled | Total |\n|---|");
       out.append("---:|".repeat(shown.size() + 3)).append('\n');
       for (Curve curve : family.curves()) {
         out.append("| ").append(curve.learner().title().replace("*", "\\*")).append(" |");
         for (int run : shown) {
           out.append(format(" %.1f |", curve.meanSteps().get(run - 1)));
         }
-        out.append(curve.converged() == 0 ? " — |" : format(" %.1f |", curve.shortestFromRun()));
-        out.append(format(" %.0f%% | %.0f |%n", 100.0 * curve.converged() / settings.mazes(), curve.totalSteps()));
+        out.append(curve.settled() == 0 ? " — |" : format(" %.1f |", curve.shortestFromRun()));
+        out.append(format(" %.0f%% | %.0f |%n", 100.0 * curve.settled() / settings.mazes(), curve.totalSteps()));
       }
     }
     return out.toString();

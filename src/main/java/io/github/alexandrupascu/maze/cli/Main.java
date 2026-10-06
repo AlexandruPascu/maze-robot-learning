@@ -5,8 +5,8 @@ import io.github.alexandrupascu.maze.agents.Agent;
 import io.github.alexandrupascu.maze.bench.Benchmark;
 import io.github.alexandrupascu.maze.bench.LearningCurves;
 import io.github.alexandrupascu.maze.bench.LearningReport;
-import io.github.alexandrupascu.maze.bench.TrainingReport;
 import io.github.alexandrupascu.maze.bench.ReportWriter;
+import io.github.alexandrupascu.maze.bench.TrainingReport;
 import io.github.alexandrupascu.maze.generate.Layout;
 import io.github.alexandrupascu.maze.generate.MazeSpec;
 import io.github.alexandrupascu.maze.generate.TargetPlacement;
@@ -27,7 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/** Command-line entry point: {@code benchmark}, {@code show} and {@code render}. */
+/** Command-line entry point: {@code show}, {@code benchmark}, {@code learn}, {@code train} and {@code render}. */
 public final class Main {
   static final String USAGE = """
       Usage: maze-robot <command> [options]
@@ -35,8 +35,9 @@ public final class Main {
       Commands:
         show        Draw a maze in the terminal with what a robot did on its first and
                     last runs, a legend, and colour when the terminal shows it
-                      --agent coursework|map-planner|route-prover|a-star|
-                              q-learning|dyna-q|lrta-star  (map-planner)
+                      --agent coursework|map-planner|route-prover|a-star|q-learning|
+                              dyna-q|lrta-star|frontier-explorer|learned-explorer
+                              (map-planner; dyna-q replays 50 moves per step)
                       --layout prim|backtracker (prim)  --cells N (10)  --loops F (0)
                       --target corner|random (corner)  --seed S (1)  --runs N (2)
                       --color auto|always|never (auto; NO_COLOR=1 and FORCE_COLOR=1 also work)

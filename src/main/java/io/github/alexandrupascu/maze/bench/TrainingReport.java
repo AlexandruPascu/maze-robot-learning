@@ -50,9 +50,10 @@ public final class TrainingReport {
             + "never uses.%n%n",
         arguments(settings), settings.generations(), settings.population(), settings.elites(),
         6 * settings.mazesPerType(), settings.mazesPerType(), settings.cells(), settings.cells(), settings.seed()));
-    out.append("A policy's cost is its mean first-run steps relative to the freespace rule on the same maze, so the "
-        + "freespace rule costs exactly 1 and every maze type counts equally. Results on the benchmark's own mazes, "
-        + "which training never saw, are in [summary.md](summary.md#learning-across-mazes).\n\n");
+    out.append("A policy's cost is the mean over the training mazes of its first-run steps divided by the freespace "
+        + "rule's on the same maze, so the freespace rule costs exactly 1 and every maze counts equally. Results on the "
+        + "benchmark's own mazes, which training never saw, are in [summary.md](summary.md#learning-across-mazes); its "
+        + "\"mean per-maze change\" is the same measure.\n\n");
     out.append(format("The trained policy costs **%.4f** on the training mazes.%n%n", result.cost()));
     out.append("| Feature | Weight |\n|---|---:|\n");
     double[] weights = result.policy().weights();

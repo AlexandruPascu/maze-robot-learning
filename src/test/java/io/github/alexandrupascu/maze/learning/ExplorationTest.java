@@ -36,6 +36,7 @@ class ExplorationTest {
     assertThrows(IllegalArgumentException.class, () -> ExplorationPolicy.of(2, 1, 0, 0, 0, 0), "travel weight must be 1");
     assertThrows(IllegalArgumentException.class, () -> ExplorationPolicy.of(1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> ExplorationPolicy.of(1, Double.NaN, 0, 0, 0, 0));
+    assertThrows(IllegalArgumentException.class, () -> ExplorationPolicy.of(1, 1e308, 0, 0, 0, 0), "scores would overflow");
     assertThrows(IllegalArgumentException.class, () -> ExplorationPolicy.parse("remaining 1\ntravel 1\n"));
     assertThrows(IllegalArgumentException.class, () -> ExplorationPolicy.parse("travel 1\n"));
   }

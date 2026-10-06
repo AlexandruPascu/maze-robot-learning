@@ -6,7 +6,7 @@ A robot explores a maze it has never seen, then runs it again using what it lear
 repository runs my 2022 university coursework robot alongside two planning robots, robots that learn
 from run to run or from maze to maze, and an A\* oracle on thousands of seeded mazes. It measures
 what each one gains. One planner proves which route is shortest before it finishes its first run,
-so every later run takes it, and a trained explorer finds the target faster on mazes it never saw.
+so every later run takes it, and a trained explorer finds the target faster on Prim mazes it never saw.
 The simulator is self-contained Java 21 and deterministic on every platform.
 
 ![Three copies of the same 15x15-cell maze. The coursework robot's second run takes a long detour, the map planner's takes a longer way round, and the route prover's takes a shortest route.](docs/maze.svg)
@@ -61,16 +61,18 @@ The [full results](reports/summary.md) also cover 7×7 and 30×30 mazes. They sh
 ![Learning curves on 15x15 Prim mazes with 10% loops: mean steps per run over 30 runs, on a log scale, for Q-learning, Dyna-Q with 5 and 50 replays, LRTA*, the map planner and the route prover, with the shortest route as a dashed line.](docs/learning.svg)
 
 Each robot ran every maze 30 times and kept what it learned between runs. The mazes are the
-benchmark's first 100 15×15-cell mazes of each of the six types. In the table, "shortest from run"
-is the run from which every later run took a shortest route, averaged over the mazes where that
-happened within 30 runs. The [learning report](reports/learning.md) breaks it down by maze type.
+benchmark's first 100 15×15-cell mazes of each of the six types. A maze counts as settled when the
+robot's last 10 runs there all took a shortest route; one shortest run is not enough, because a
+learner can find a shortest route by chance and leave it again. "Shortest from run" is where that
+final streak began, averaged over the settled mazes. The [learning report](reports/learning.md)
+breaks it down by maze type.
 
-| Robot | What it learns | Shortest from run | Mazes where that happened |
+| Robot | What it learns | Shortest from run | Mazes settled |
 | --- | --- | ---: | ---: |
 | Q-learning | A value for each move, from step costs alone; it is not told where the target is | never | 0% |
-| Dyna-Q, 5 replays | The same, plus where each move leads, replaying 5 remembered moves per step | 19.5–30.0 | 0–97% |
-| Dyna-Q, 50 replays | The same, replaying 50 remembered moves per step | 10.3–15.1 | 100% |
-| LRTA\* | Distance estimates, starting from the straight-line distance to the target | 13.8–27.2 | 0–95% |
+| Dyna-Q, 5 replays | The same, plus where each move leads, replaying 5 remembered moves per step | 17.0–20.0 | 0–65% |
+| Dyna-Q, 50 replays | The same, replaying 50 remembered moves per step | 10.3–14.9 | 97–100% |
+| LRTA\* | Distance estimates, starting from the Manhattan distance to the target, ignoring walls | 9.8–19.4 | 0–72% |
 | Map planner | A map, planned on with D\* Lite | 1.0–2.0 | 5–100% |
 | Route prover | A map, explored until its route is proven shortest | 1.0–2.0 | 100% |
 
@@ -79,11 +81,13 @@ The ranges run across the six maze types. They show:
 - **Learning from step costs alone is slow.** Q-learning still averaged 347–625 steps on run 30,
   against shortest routes of 56–189. It never settled on a shortest route in any of the 600 mazes.
 - **A model of the maze is what speeds learning up.** Replaying remembered moves spreads each
-  lesson through the model. With 50 replays per step, Dyna-Q settled on the shortest route in every
-  maze, by run 10–15 on average. Over 30 runs it walked 18–28% of Q-learning's steps.
-- **Knowing where the target is helps most early on.** On mazes with loops, LRTA\*'s first run took
-  194–782 steps, against 1,469–1,947 for Dyna-Q with 50 replays. Its estimates are local, though,
-  and it settled on the shortest route in 0–95% of mazes, depending on the type.
+  lesson through the model. With 50 replays per step, Dyna-Q settled on the shortest route in
+  97–100% of mazes, from run 10–15 on average. Over 30 runs it walked 18–28% of Q-learning's steps.
+  With 5 replays it settled in at most 65% of mazes of a type, and in none with 25% loops.
+- **On mazes with loops, knowing where the target is helps most early on.** There LRTA\*'s first
+  run took 194–781 steps, against 1,469–1,947 for Dyna-Q with 50 replays. On perfect mazes it was
+  the other way round: 1,819–2,280 steps against 1,725–1,739. LRTA\*'s estimates are local, so it
+  often finds a shortest route and then leaves it again; it settled in 4–38% of mazes with loops.
 - **Here, planning beats learning.** The route prover walked the fewest steps over 30 runs on every
   maze type, tied with the map planner on backtracker mazes without loops. A planner is what
   model-based learning becomes when the model is the map itself and the target is known. Learning
@@ -91,34 +95,42 @@ The ranges run across the six maze types. They show:
 
 ## Learning across mazes
 
-The learned explorer carries experience from maze to maze. It repeatedly walks to the frontier cell
+The learned explorer carries experience from maze to maze: its weights are trained once on one set
+of mazes, then fixed. It repeatedly walks to the frontier cell
 with the lowest score, where a frontier cell is a reachable cell with walls it has not seen yet. The
 score weights six features of each frontier, and the cross-entropy method trains the weights:
 
 - **Training:** 25 generations of 40 sampled weight sets, refitted to the best 8 each time, on 300
   mazes of 15×15 cells: 50 of each type, from a seed the benchmark never uses.
-- **Objective:** first-run steps relative to the same explorer using the map planner's freespace
-  rule, so every maze type counts equally ([training report](reports/training.md)).
-- **Test:** the benchmark's 5,400 mazes, including 7×7 and 30×30 mazes, a size it never trained on.
+- **Objective:** the mean, over the training mazes, of first-run steps divided by the steps of the
+  same explorer using the map planner's freespace rule on that maze. Every maze counts equally
+  ([training report](reports/training.md)).
+- **Test:** the benchmark's 5,400 mazes, including 7×7 and 30×30 mazes, sizes it never trained on.
 
-| First run on 15×15 mazes, mean steps | Freespace rule | Learned | Change |
-| --- | ---: | ---: | ---: |
-| Prim, no loops | 302.7 | 266.5 | −12.0% |
-| Backtracker, no loops | 183.7 | 183.7 | 0.0% |
-| Prim, 10% loops | 187.6 | 167.2 | −10.9% |
-| Backtracker, 10% loops | 126.5 | 125.6 | −0.7% |
-| Prim, 25% loops | 118.7 | 108.4 | −8.7% |
-| Backtracker, 25% loops | 86.5 | 84.1 | −2.7% |
+The table compares mean steps, and also each maze's own ratio averaged over the mazes, which is
+what training minimised.
+
+| First run on 15×15 mazes | Freespace rule, mean steps | Learned, mean steps | Change | Mean per-maze change | Mazes better / worse |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Prim, no loops | 302.7 | 266.5 | −12.0% | −9.7% | 239 / 54 |
+| Backtracker, no loops | 183.7 | 183.7 | 0.0% | 0.0% | 0 / 0 |
+| Prim, 10% loops | 187.6 | 167.2 | −10.9% | −9.4% | 219 / 54 |
+| Backtracker, 10% loops | 126.5 | 125.6 | −0.7% | +2.1% | 107 / 111 |
+| Prim, 25% loops | 118.7 | 108.4 | −8.7% | −8.1% | 213 / 47 |
+| Backtracker, 25% loops | 86.5 | 84.1 | −2.7% | −0.9% | 125 / 87 |
 
 Across all sizes ([full results](reports/summary.md#learning-across-mazes)):
 
-- **On Prim mazes the learned weights cut first runs by 3.0–13.7% at every size,** so what they
-  learned on 15×15 mazes carries over to 7×7 and 30×30 ones.
+- **On Prim mazes the learned weights cut mean first-run steps by 3.0–13.7% at every size.** Maze
+  by maze the gain is 7.9–12.2% at 15×15 and 30×30, so what they learned carries over to larger
+  mazes. At 7×7 it is small: from 2.6% better to 0.7% worse, though more mazes got shorter than
+  longer in every 7×7 Prim type.
 - **Perfect backtracker mazes are unchanged.** Both rules already take a shortest route there.
-- **On backtracker mazes with loops the change is −2.7% to +1.0%:** small gains at 15×15 and 30×30,
-  small losses at 7×7.
+- **On backtracker mazes with loops the gains are small or absent.** Mean steps change by −2.7% to
+  +1.0%, and the mean per-maze change is −1.4% to +2.2%. At 15×15 with 10% loops the learned rule
+  is about even: 107 mazes shorter, 111 longer.
 - **What it learned:**
-  - **Detours:** the weights on the optimistic distance to the target (2.03) and the straight-line
+  - **Detours:** the weights on the optimistic distance to the target (2.03) and the Manhattan
     distance (−0.72) together penalise frontiers whose best possible route already bends around
     known walls.
   - **Preferences:** it also prefers openings that face the target and frontiers found recently.
@@ -195,7 +207,8 @@ between them, so it reasons about the walls between cells.
   run after it take a shortest route.
 
 **Q-learning and Dyna-Q.** Learn a value for every move on every tile from the cost of their own
-steps, where each step is worth -1. Neither is told where the target is.
+steps, where each step is worth −1. Neither is told where the target is; they recognise it only by
+arriving there.
 
 - **Exploration:** untried moves start at the best possible value, so the robot keeps trying new
   moves until none look better. Ties are broken at random.
@@ -204,11 +217,12 @@ steps, where each step is worth -1. Neither is told where the target is.
   after every real step.
 
 **LRTA\*.** Learning Real-Time A\* (Korf, 1990) keeps an estimate of every tile's distance to the
-target, starting from the straight-line Manhattan distance. Each step it moves to the neighbour with
+target, starting from the Manhattan distance, which ignores walls. Each step it moves to the neighbour with
 the lowest one step plus estimate, and raises its own tile's estimate to match. The estimates never
 overshoot the true distance, and over repeated runs they converge on a shortest route.
 
-Like every other robot, the learners see the walls next to them and never walk into one.
+Like every other robot, the learners see the walls next to them, and in the learning report they
+never walked into one.
 
 **Frontier explorer and learned explorer.** Both know the maze is a grid of cells, like the route
 prover. On run 1 they walk through known passages to the frontier cell with the lowest score,
@@ -234,11 +248,12 @@ heuristic saves.
   position and the run number. It then turns and moves one tile; walking into a wall still costs a
   step.
 - **The `Robot` interface:** robots implement `beginMaze`, `beginRun`, `act` and `afterStep`.
-  `afterStep` reports every move's outcome, ready for agents that learn from feedback.
+  `afterStep` reports every move's outcome, which Q-learning and Dyna-Q learn from.
 - **Determinism:** all randomness is seeded through `java.util.Random`, whose algorithm is specified
   exactly. The same seed therefore reproduces a maze and a robot's choices on any JVM and operating
   system. CI builds and tests on Linux, macOS and Windows with Java 21, and on Linux with Java 25.
-  It also regenerates the reports and the image and fails if a single byte changes.
+  It also retrains the explorer, regenerates the reports, learning curves and both images, and
+  fails if a single byte changes.
 
 ## Code and tests
 
@@ -257,7 +272,7 @@ heuristic saves.
 | `models/` | The trained exploration weights, shipped with the program |
 | `reports/` | Benchmark results, learning curves and training history as CSV and Markdown |
 
-`./gradlew build` compiles with all warnings as errors and runs 89 JUnit tests. They cover:
+`./gradlew build` compiles with all warnings as errors and runs 91 JUnit tests. They cover:
 
 - **Mazes:** generator properties (spanning trees, loop counts, recorded seeds).
 - **Simulation:** the simulator's movement and sensing rules.
@@ -270,16 +285,16 @@ heuristic saves.
 - **Learning:**
   - that the learners never walk into a wall they have seen;
   - that Dyna-Q and Q-learning learn a shortest route, and that replay saves steps;
-  - that LRTA\*'s estimates stay below the true distances and settle on a shortest route;
+  - that LRTA\*'s estimates never exceed the true distances and settle on a shortest route;
   - that the learning curves are deterministic and the chart is well-formed;
   - that both exploration rules finish safely and then retrace a known shortest route;
-  - that training is deterministic, never uses benchmark mazes, and that the shipped weights are
-    trained ones.
+  - that training is deterministic and never uses benchmark mazes, and that the shipped weights
+    differ from the freespace rule (CI checks that they match a fresh training run byte for byte).
 - **Search:**
   - that A\* and Dijkstra agree with breadth-first search;
   - that D\* Lite agrees with a fresh breadth-first search after every wall it learns and wherever
     the robot moves;
-  - that the route used for drawings is the shortest route overlapping run 2 the most, checked
+  - that the route used for drawings is the shortest route overlapping a run the most, checked
     against every shortest route on small mazes.
 - **Drawings:** the terminal marks, that colour changes nothing but styling, and when colour is used
   (terminals, `./gradlew run`, `NO_COLOR`, `FORCE_COLOR`, Windows consoles).
@@ -303,8 +318,9 @@ route replay, and the measurements above replace that description.
 - **The proof:** the route prover's proof costs extra exploration on mazes with loops. Learning
   which walls to inspect first, the same way the explorer learned where to look, could make it
   cheaper.
-- **Backtracker mazes:** the learned explorer loses up to 1% on small backtracker mazes with loops.
-  Features that tell the maze types apart, or a policy per type, are the obvious next try.
+- **Backtracker mazes:** on backtracker mazes with loops the learned explorer gains little, and
+  maze by maze it is up to 2.2% worse. Features that tell the maze types apart, or a policy per
+  type, are the obvious next try.
 
 ## Licence
 

@@ -11,12 +11,12 @@ repositories {
     mavenCentral()
 }
 
-// The trained exploration weights ship with the program as a class-path resource.
-sourceSets {
-    main {
-        resources {
-            srcDir("models")
-        }
+// The trained exploration weights ship with the program, next to the class that loads them. Only
+// that file is packaged, so other files under models/ never end up in the jar.
+tasks.processResources {
+    from("models") {
+        include("explorer.weights")
+        into("io/github/alexandrupascu/maze/learning")
     }
 }
 

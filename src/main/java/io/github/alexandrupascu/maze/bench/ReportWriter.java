@@ -113,15 +113,20 @@ public final class ReportWriter {
     out.append("\n## Learning across mazes\n\n");
     out.append("First runs of the frontier explorer, which walks to the frontier cell with the lowest score, with the "
         + "map planner's freespace rule and with weights trained by the cross-entropy method on other mazes "
-        + "([training.md](training.md)). Every maze here is unseen by the training; it used only 15x15 mazes.\n\n");
-    out.append("| Maze | Map planner | Frontier explorer, freespace rule | Frontier explorer, learned | Learned against freespace |\n");
-    out.append("|---|---:|---:|---:|---:|\n");
-    for (Config config : configs) {
+        + "([training.md](training.md)). Every maze here is unseen by the training; it used only 15x15 mazes. "
+        + "\"Change in mean steps\" compares the mean steps; \"mean per-maze change\" averages each maze's own "
+        + "ratio, which is what training minimised, so one long run cannot hide many small losses.\n\n");
+    out.append("| Maze | Map planner | Freespace rule | Learned | Change in mean steps | Mean per-maze change "
+        + "| Mazes better / worse |\n");
+    out.append("|---|---:|---:|---:|---:|---:|---:|\n");
+    for (Benchmark.ExplorationSummary row : report.explorations()) {
+      Config config = row.config();
       AgentSummary freespace = find(report, config, Agent.FRONTIER_EXPLORER);
       AgentSummary learned = find(report, config, Agent.LEARNED_EXPLORER);
-      out.append(format("| %s | %.1f | %.1f | %.1f | %+.1f%% |%n", config.label(),
+      out.append(format("| %s | %.1f | %.1f | %.1f | %+.1f%% | %+.1f%% | %d / %d |%n", config.label(),
           find(report, config, Agent.MAP_PLANNER).run1Steps(), freespace.run1Steps(), learned.run1Steps(),
-          100 * (learned.run1Steps() / freespace.run1Steps() - 1)));
+          100 * (learned.run1Steps() / freespace.run1Steps() - 1), 100 * (row.meanRatio() - 1), row.better(),
+          row.worse()));
     }
 
     out.append("\n## Speed-up from run 1 to run 2\n\n");

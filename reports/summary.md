@@ -79,28 +79,28 @@ The route prover may explore more than the map planner on run 1 to prove its rou
 
 ## Learning across mazes
 
-First runs of the frontier explorer, which walks to the frontier cell with the lowest score, with the map planner's freespace rule and with weights trained by the cross-entropy method on other mazes ([training.md](training.md)). Every maze here is unseen by the training; it used only 15x15 mazes.
+First runs of the frontier explorer, which walks to the frontier cell with the lowest score, with the map planner's freespace rule and with weights trained by the cross-entropy method on other mazes ([training.md](training.md)). Every maze here is unseen by the training; it used only 15x15 mazes. "Change in mean steps" compares the mean steps; "mean per-maze change" averages each maze's own ratio, which is what training minimised, so one long run cannot hide many small losses.
 
-| Maze | Map planner | Frontier explorer, freespace rule | Frontier explorer, learned | Learned against freespace |
-|---|---:|---:|---:|---:|
-| prim 7x7, 0% loops | 72.2 | 72.2 | 70.1 | -3.0% |
-| prim 15x15, 0% loops | 303.1 | 302.7 | 266.5 | -12.0% |
-| prim 30x30, 0% loops | 1186.0 | 1183.0 | 1069.0 | -9.6% |
-| backtracker 7x7, 0% loops | 48.9 | 48.9 | 48.9 | +0.0% |
-| backtracker 15x15, 0% loops | 183.7 | 183.7 | 183.7 | +0.0% |
-| backtracker 30x30, 0% loops | 603.8 | 603.8 | 603.8 | +0.0% |
-| prim 7x7, 10% loops | 55.9 | 55.9 | 53.3 | -4.6% |
-| prim 15x15, 10% loops | 187.5 | 187.6 | 167.2 | -10.9% |
-| prim 30x30, 10% loops | 450.5 | 451.8 | 389.9 | -13.7% |
-| backtracker 7x7, 10% loops | 39.4 | 39.5 | 39.8 | +0.8% |
-| backtracker 15x15, 10% loops | 127.1 | 126.5 | 125.6 | -0.7% |
-| backtracker 30x30, 10% loops | 305.1 | 303.3 | 296.4 | -2.3% |
-| prim 7x7, 25% loops | 44.1 | 44.1 | 41.9 | -5.0% |
-| prim 15x15, 25% loops | 118.5 | 118.7 | 108.4 | -8.7% |
-| prim 30x30, 25% loops | 262.0 | 262.2 | 233.5 | -11.0% |
-| backtracker 7x7, 25% loops | 32.5 | 32.5 | 32.8 | +1.0% |
-| backtracker 15x15, 25% loops | 86.3 | 86.5 | 84.1 | -2.7% |
-| backtracker 30x30, 25% loops | 187.8 | 188.3 | 183.5 | -2.5% |
+| Maze | Map planner | Freespace rule | Learned | Change in mean steps | Mean per-maze change | Mazes better / worse |
+|---|---:|---:|---:|---:|---:|---:|
+| prim 7x7, 0% loops | 72.2 | 72.2 | 70.1 | -3.0% | +0.7% | 165 / 68 |
+| prim 15x15, 0% loops | 303.1 | 302.7 | 266.5 | -12.0% | -9.7% | 239 / 54 |
+| prim 30x30, 0% loops | 1186.0 | 1183.0 | 1069.0 | -9.6% | -7.9% | 225 / 71 |
+| backtracker 7x7, 0% loops | 48.9 | 48.9 | 48.9 | +0.0% | +0.0% | 0 / 0 |
+| backtracker 15x15, 0% loops | 183.7 | 183.7 | 183.7 | +0.0% | +0.0% | 0 / 0 |
+| backtracker 30x30, 0% loops | 603.8 | 603.8 | 603.8 | +0.0% | +0.0% | 0 / 0 |
+| prim 7x7, 10% loops | 55.9 | 55.9 | 53.3 | -4.6% | -1.5% | 156 / 66 |
+| prim 15x15, 10% loops | 187.5 | 187.6 | 167.2 | -10.9% | -9.4% | 219 / 54 |
+| prim 30x30, 10% loops | 450.5 | 451.8 | 389.9 | -13.7% | -12.2% | 239 / 54 |
+| backtracker 7x7, 10% loops | 39.4 | 39.5 | 39.8 | +0.8% | +2.2% | 37 / 53 |
+| backtracker 15x15, 10% loops | 127.1 | 126.5 | 125.6 | -0.7% | +2.1% | 107 / 111 |
+| backtracker 30x30, 10% loops | 305.1 | 303.3 | 296.4 | -2.3% | -0.1% | 143 / 132 |
+| prim 7x7, 25% loops | 44.1 | 44.1 | 41.9 | -5.0% | -2.6% | 132 / 58 |
+| prim 15x15, 25% loops | 118.5 | 118.7 | 108.4 | -8.7% | -8.1% | 213 / 47 |
+| prim 30x30, 25% loops | 262.0 | 262.2 | 233.5 | -11.0% | -10.3% | 247 / 38 |
+| backtracker 7x7, 25% loops | 32.5 | 32.5 | 32.8 | +1.0% | +1.8% | 52 / 55 |
+| backtracker 15x15, 25% loops | 86.3 | 86.5 | 84.1 | -2.7% | -0.9% | 125 / 87 |
+| backtracker 30x30, 25% loops | 187.8 | 188.3 | 183.5 | -2.5% | -1.4% | 148 / 120 |
 
 ## Speed-up from run 1 to run 2
 

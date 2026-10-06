@@ -9,9 +9,9 @@ import java.util.Locale;
 
 /**
  * Draws one maze type's learning curves as a standalone SVG line chart with a logarithmic step axis.
- * Series colours are the first slots of a categorical palette in a fixed order, each with a light
- * and a dark step checked for colour-vision deficiency and contrast; the theme follows the viewer's
- * colour scheme. The learning report's tables carry the same numbers.
+ * Series colours are the first slots of a categorical palette in a fixed order, each with a light-
+ * and a dark-theme value (the sixth slot uses one for both) checked for colour-vision deficiency
+ * and contrast; the theme follows the viewer's colour scheme. The learning report's tables carry the same numbers.
  */
 public final class LearningChart {
   private static final int WIDTH = 760;
